@@ -64,7 +64,8 @@ service cloud.firestore {
         && data.itemId is string && data.itemId.size() <= 128
         && data.quantity is number
         && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
-        && data.type in ['count', 'usage', 'delivery']
+        && data.type in ['count', 'usage', 'delivery', 'sales']
+        && (data.keys().hasAll(['notes']) ? data.notes is string && data.notes.size() <= 500 : true)
         && data.createdBy == request.auth.uid
         && data.createdAt == request.time;
     }

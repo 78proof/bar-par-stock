@@ -174,4 +174,34 @@ export const salesData: SeedItem[] = [
   { name: 'BAILEY\'S', categoryName: 'Liqueur', isGlass: true, price: 807, group: 'LIQUR' },
   { name: 'AMARETTO', categoryName: 'Liqueur', isGlass: true, price: 800, group: 'LIQUR' },
   { name: 'KAHLUA', categoryName: 'Liqueur', isGlass: true, price: 800, group: 'LIQUR' },
+
+  // COCKTAILS
+  { name: 'OLD FASHIONED', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'NEGRONI', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'MARGARITA', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'ESPRESSO MARTINI', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'WHISKY SOUR', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'PORNSTARTINI', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'APEROL SPRITZ', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'MOJITO', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'HUGO SPRITZ', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+  { name: 'DOME266', categoryName: 'COCKTAIL', isGlass: true, group: 'COCKTAIL' },
+
+  // MOCKTAILS
+  { name: 'CHAMELEON', categoryName: 'NON-ALCOHOL', isGlass: true, group: 'BEVERAGE' },
+  { name: 'EUPHORIA', categoryName: 'NON-ALCOHOL', isGlass: true, group: 'BEVERAGE' },
+  { name: 'VIRGIN MOJITO', categoryName: 'NON-ALCOHOL', isGlass: true, group: 'BEVERAGE' },
+  { name: 'ZEST', categoryName: 'NON-ALCOHOL', isGlass: true, group: 'BEVERAGE' },
+
+  // SPIRITS ADDITIONS
+  { name: 'TANQUERAY TEN', categoryName: 'Gin', isGlass: true, group: 'GIN' },
+  { name: 'ROKU', categoryName: 'Gin', isGlass: true, group: 'GIN' },
+  { name: 'GREY GOOSE', categoryName: 'Vodka', isGlass: true, group: 'VODKA' },
+  { name: 'BELVEDERE', categoryName: 'Vodka', isGlass: true, group: 'VODKA' },
+  { name: 'DON JULIO 1942', categoryName: 'Tequila', isGlass: true, group: 'TEQUILA' },
+  { name: 'CLASE AZUL REPOSADO', categoryName: 'Tequila', isGlass: true, group: 'TEQUILA' },
+  { name: 'MACALLAN 12Y', categoryName: 'Whisky', isGlass: true, group: 'WHISKY' },
+  { name: 'GLENFIDDICH 12Y', categoryName: 'Whisky', isGlass: true, group: 'WHISKY' },
+  { name: 'SINGLETON 12Y', categoryName: 'Whisky', isGlass: true, group: 'WHISKY' },
+  { name: 'HENNESSY XO', categoryName: 'Cognac', isGlass: true, group: 'COGNAC' },
 ];

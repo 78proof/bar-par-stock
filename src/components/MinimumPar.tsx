@@ -18,9 +18,11 @@ export const MinimumPar: React.FC = () => {
     return !i.isGlass;
   });
 
-  const filteredItems = nonGlassItems.filter(i => 
-    i.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = nonGlassItems.filter(i => {
+    const itemCat = categories.find(c => c.id === i.categoryId);
+    return i.name.toLowerCase().includes(search.toLowerCase()) || 
+           itemCat?.name.toLowerCase().includes(search.toLowerCase());
+  });
 
   const handleUpdatePar = async (id: string, par: number) => {
     setSaving(id);

@@ -38,16 +38,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Item, Category } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { cn } from '../lib/utils';
 
 export const InventoryList: React.FC = () => {
   const { items, categories, addItem, updateItem, deleteItem, addCategory, deleteCategory } = useInventory();
   const [filter, setFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [isAddOpen, setAddOpen] = useState(false);
-  const [isCategoryOpen, setCategoryOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Item | null>(null);
-  
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isCategorySelectorOpen, setCategorySelectorOpen] = useState(false);
 
   const [newItem, setNewItem] = useState<Omit<Item, 'id' | 'updatedAt' | 'createdBy'>>({
     name: '',
@@ -63,6 +62,10 @@ export const InventoryList: React.FC = () => {
       setNewItem(prev => ({ ...prev, categoryId: categories[0].id }));
     }
   }, [categories]);
+
+  const filteredCategories = categories.filter(c => 
+    c.name.toLowerCase().includes(categorySearch.toLowerCase())
+  );
 
   const liquorItems = items.filter(item => {
     const cat = categories.find(c => c.id === item.categoryId);
@@ -149,24 +152,52 @@ export const InventoryList: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Category</Label>
-                    <Select value={newItem.categoryId} onValueChange={(v) => setNewItem({...newItem, categoryId: v})}>
-                      <SelectTrigger className="w-full bg-slate-950 border-slate-800 text-slate-200">
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                        {categories.length > 0 ? (
-                          categories.map(cat => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                          ))
-                        ) : (
-                          <div className="p-4 text-xs text-slate-500 text-center">
-                            No categories found.
-                            <br />
-                            Please add a category first.
+                    <div className="relative">
+                      <button 
+                        onClick={() => setCategorySelectorOpen(!isCategorySelectorOpen)}
+                        className="w-full flex items-center justify-between px-3 h-10 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-600 transition-colors text-sm"
+                      >
+                        <span className={newItem.categoryId ? "text-slate-200" : "text-slate-500"}>
+                          {categories.find(c => c.id === newItem.categoryId)?.name || "Select Category"}
+                        </span>
+                        <Search size={14} className="text-slate-500" />
+                      </button>
+
+                      {isCategorySelectorOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setCategorySelectorOpen(false)} />
+                          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden max-h-60 flex flex-col">
+                            <div className="p-2 border-b border-slate-800 bg-slate-950/50">
+                              <Input 
+                                autoFocus
+                                placeholder="Search categories..."
+                                value={categorySearch}
+                                onChange={e => setCategorySearch(e.target.value)}
+                                className="h-8 bg-slate-950 border-slate-800 text-xs"
+                              />
+                            </div>
+                            <div className="overflow-y-auto p-1 custom-scrollbar">
+                              {filteredCategories.map(cat => (
+                                <button
+                                  key={cat.id}
+                                  onClick={() => {
+                                    setNewItem({...newItem, categoryId: cat.id});
+                                    setCategorySelectorOpen(false);
+                                    setCategorySearch('');
+                                  }}
+                                  className={cn(
+                                    "w-full text-left px-3 py-2 rounded-lg text-xs transition-all",
+                                    newItem.categoryId === cat.id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                                  )}
+                                >
+                                  {cat.name}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        )}
-                      </SelectContent>
-                    </Select>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="grid gap-2">
                     <Label className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Unit</Label>

@@ -30,6 +30,12 @@ export const ParCutting: React.FC = () => {
   const { items, categories, addLog } = useInventory();
   const [date, setDate] = useState<Date>(new Date());
   const [search, setSearch] = useState('');
+  const [isSelectorOpen, setSelectorOpen] = useState(false);
+  const [selectorSearch, setSelectorSearch] = useState('');
+
+  const filteredSelectorItems = items.filter(item => 
+    item.name.toLowerCase().includes(selectorSearch.toLowerCase())
+  );
   const [filter, setFilter] = useState<string>('all');
   
   const [mode, setMode] = useState<'count' | 'delivery'>('count');
@@ -148,13 +154,51 @@ export const ParCutting: React.FC = () => {
       <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-6 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
-            <Input 
-              className="pl-12 h-12 rounded-2xl bg-slate-950 border-slate-800 hover:border-slate-700 transition-all font-medium" 
-              placeholder="Quick search items..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <div className="relative flex items-center">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+              <button 
+                onClick={() => setSelectorOpen(!isSelectorOpen)}
+                className="w-full pl-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center text-slate-400 transition-all font-medium text-left"
+              >
+                {search || "Search items to count..."}
+              </button>
+            </div>
+
+            {isSelectorOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setSelectorOpen(false)} />
+                <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[300px]">
+                  <div className="p-3 border-b border-slate-800 bg-slate-950/50">
+                    <Input 
+                      autoFocus
+                      placeholder="Type to filter..."
+                      value={selectorSearch}
+                      onChange={e => setSelectorSearch(e.target.value)}
+                      className="h-9 bg-slate-950 border-slate-800 rounded-xl"
+                    />
+                  </div>
+                  <div className="overflow-y-auto p-1 custom-scrollbar">
+                    {filteredSelectorItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setSearch(item.name);
+                          setSelectorOpen(false);
+                          setSelectorSearch('');
+                        }}
+                        className="w-full text-left px-4 py-2.5 rounded-xl text-xs transition-all hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between group"
+                      >
+                        <span>{item.name}</span>
+                        <span className="text-[9px] text-slate-600 font-bold uppercase group-hover:text-blue-400">{getCategoryName(item.categoryId)}</span>
+                      </button>
+                    ))}
+                    {filteredSelectorItems.length === 0 && (
+                      <div className="p-8 text-center text-slate-600 text-[10px]">No matches for "{selectorSearch}"</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <Select value={filter} onValueChange={(v) => setFilter(v)}>
             <SelectTrigger className="w-full sm:w-[200px] h-12 rounded-2xl bg-slate-950 border-slate-800 font-medium text-slate-200">
@@ -178,7 +222,7 @@ export const ParCutting: React.FC = () => {
                 <th className="text-center p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Base Par</th>
                 <th className="text-center p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Last Stock</th>
                 <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500 w-[140px]">
-                  {mode === 'count' ? 'Final Stock' : 'Amount Received'}
+                  {mode === 'count' ? 'Final Stock / Sold' : 'Amount Received'}
                 </th>
               </tr>
             </thead>
@@ -186,7 +230,12 @@ export const ParCutting: React.FC = () => {
               {filteredItems.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-800/30 transition-colors group">
                   <td className="p-4">
-                    <div className="font-bold text-slate-200">{item.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-bold text-slate-200">{item.name}</div>
+                      {(item.isGlass || item.name.toLowerCase().includes('(glass)')) && (
+                        <div className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-[8px] font-black uppercase text-blue-500 border border-blue-500/20">SOP</div>
+                      )}
+                    </div>
                     <div className="text-[10px] uppercase tracking-widest text-slate-600 sm:hidden font-bold">{item.unit}</div>
                   </td>
                   <td className="p-4 text-center text-slate-500 hidden sm:table-cell font-mono text-xs">{item.unit}</td>

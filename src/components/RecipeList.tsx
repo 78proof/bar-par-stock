@@ -14,6 +14,7 @@ import {
   FolderPlus,
   Tag
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { 
   Dialog, 
   DialogContent, 
