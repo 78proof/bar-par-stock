@@ -87,8 +87,8 @@ export const seedDatabase = async (userId: string) => {
     if (name.includes('Vodka')) cat = VODKA_CAT;
     if (name.includes('Don Julio')) cat = TEQUILA_CAT;
     if (name.includes('Zacapa')) cat = RUM_CAT;
-    await addItem(name, cat, 'oz');
     await addItem(name, cat, 'btl', false);
+    await addItem(name, cat, 'oz', true);
   }
 
   for (const name of DISTRIBUTOR_DATA.BACARDI) {
@@ -97,7 +97,8 @@ export const seedDatabase = async (userId: string) => {
     if (name.includes('Bombay')) cat = GIN_CAT;
     if (name.includes('Patron')) cat = TEQUILA_CAT;
     if (name.includes('Dewars') || name.includes('Aberfeldy')) cat = WHISKY_CAT;
-    await addItem(name, cat, 'oz');
+    await addItem(name, cat, 'btl', false);
+    await addItem(name, cat, 'oz', true);
   }
 
   for (const name of DISTRIBUTOR_DATA.PERNOD_RICARD) {
@@ -105,7 +106,8 @@ export const seedDatabase = async (userId: string) => {
     if (name.includes('Gin')) cat = GIN_CAT;
     if (name.includes('Absolut')) cat = VODKA_CAT;
     if (name.includes('Havana') || name.includes('Malibu')) cat = RUM_CAT;
-    await addItem(name, cat, 'oz');
+    await addItem(name, cat, 'btl', false);
+    await addItem(name, cat, 'oz', true);
   }
 
   for (const name of DISTRIBUTOR_DATA.ALCHEMY) {
@@ -113,14 +115,32 @@ export const seedDatabase = async (userId: string) => {
     if (name.includes('Hennessy')) cat = await ensureCategory('Cognac', 'spirit');
     if (name.includes('Belvedere')) cat = VODKA_CAT;
     if (name.includes('Tequila')) cat = TEQUILA_CAT;
-    await addItem(name, cat, 'oz');
+    await addItem(name, cat, 'btl', false);
+    await addItem(name, cat, 'oz', true);
   }
 
   // Seed Sales Items (Glass)
+  const existingRecipesQuery = await getDocs(collection(db, 'recipes'));
+  const existingRecipeNames = new Set(existingRecipesQuery.docs.map(d => d.data().name.toLowerCase()));
+
+  const addRecipeShell = async (name: string, categoryId: string) => {
+    if (existingRecipeNames.has(name.toLowerCase())) return;
+    await addDoc(collection(db, 'recipes'), {
+      name,
+      categoryId,
+      ingredients: [],
+      createdBy: userId,
+      updatedAt: serverTimestamp()
+    });
+    existingRecipeNames.add(name.toLowerCase());
+  };
+
   for (const name of DISTRIBUTOR_DATA.COCKTAILS) {
     await addItem(name, COCKTAIL_CAT, 'oz', true);
+    await addRecipeShell(name, COCKTAIL_CAT);
   }
   for (const name of DISTRIBUTOR_DATA.MOCKTAILS) {
     await addItem(name, MOCKTAIL_CAT, 'oz', true);
+    await addRecipeShell(name, MOCKTAIL_CAT);
   }
 };

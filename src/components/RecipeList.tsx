@@ -44,6 +44,8 @@ export const RecipeList: React.FC = () => {
   const [isCategoryOpen, setCategoryOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isCategorySelectorOpen, setCategorySelectorOpen] = useState(false);
 
   const [newRecipe, setNewRecipe] = useState<Omit<Recipe, 'id' | 'updatedAt' | 'createdBy'>>({
     name: '',
@@ -153,16 +155,55 @@ export const RecipeList: React.FC = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Menu Category</Label>
-                    <Select value={newRecipe.categoryId} onValueChange={(v) => setNewRecipe({...newRecipe, categoryId: v})}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 h-11">
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-slate-800">
-                        {categories.map(cat => (
-                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="relative">
+                      <button 
+                        onClick={() => setCategorySelectorOpen(!isCategorySelectorOpen)}
+                        className="w-full flex items-center justify-between px-3 h-11 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-600 transition-colors text-sm"
+                      >
+                        <span className={newRecipe.categoryId ? "text-slate-200" : "text-slate-500"}>
+                          {categories.find(c => c.id === newRecipe.categoryId)?.name || "Select Category"}
+                        </span>
+                        <Search size={14} className="text-slate-500" />
+                      </button>
+
+                      {isCategorySelectorOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setCategorySelectorOpen(false)} />
+                          <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden max-h-60 flex flex-col">
+                            <div className="p-2 border-b border-slate-800 bg-slate-950/50">
+                              <Input 
+                                autoFocus
+                                placeholder="Search categories..."
+                                value={categorySearch}
+                                onChange={e => setCategorySearch(e.target.value)}
+                                className="h-8 bg-slate-950 border-slate-800 text-xs"
+                              />
+                            </div>
+                            <div className="overflow-y-auto p-1 custom-scrollbar">
+                              {categories
+                                .filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                                .map(cat => (
+                                  <button
+                                    key={cat.id}
+                                    onClick={() => {
+                                      setNewRecipe({...newRecipe, categoryId: cat.id});
+                                      setCategorySelectorOpen(false);
+                                      setCategorySearch('');
+                                    }}
+                                    className={cn(
+                                      "w-full text-left px-3 py-2 rounded-lg text-xs transition-all",
+                                      newRecipe.categoryId === cat.id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                                    )}
+                                  >
+                                    {cat.name}
+                                  </button>
+                                ))
+                              }
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
