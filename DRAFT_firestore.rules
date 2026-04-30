@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Items ---
+    function isValidItem(data) {
+      return data.keys().hasAll(['name', 'categoryId', 'unit', 'parLevel'])
+        && data.name is string && data.name.size() <= 100
+        && data.categoryId in ['spirit_glass', 'spirit_bottle', 'liqueur', 'apertif', 'mixer']
+        && data.unit is string && data.unit.size() <= 20
+        && data.parLevel is number && data.parLevel >= 0;
+    }
+
+    match /items/{itemId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(itemId) && isValidItem(incoming())
+                   && incoming().createdBy == request.auth.uid
+                   && incoming().updatedAt == request.time;
+      allow update: if isSignedIn() && isValidItem(incoming())
+                   && incoming().updatedAt == request.time
+                   && incoming().createdBy == existing().createdBy; // Only creator can update or all members? Let's allow all signed in users to collab as requested.
+      allow delete: if isSignedIn();
+    }
+
+    // --- Recipes ---
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['name', 'ingredients'])
+        && data.name is string && data.name.size() <= 100
+        && data.ingredients is list && data.ingredients.size() <= 50;
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(recipeId) && isValidRecipe(incoming())
+                   && incoming().createdBy == request.auth.uid;
+      allow update: if isSignedIn() && isValidRecipe(incoming());
+      allow delete: if isSignedIn();
+    }
+
+    // --- Inventory Logs ---
+    function isValidLog(data) {
+      return data.keys().hasAll(['itemId', 'quantity', 'date', 'type', 'createdBy', 'createdAt'])
+        && data.itemId is string && data.itemId.size() <= 128
+        && data.quantity is number
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.type in ['count', 'usage', 'delivery']
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    match /inventoryLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming());
+      allow update: if false; // Logs are immutable normally, but user asked to edit anytime.
+      allow delete: if isSignedIn();
+      
+      // If user really wants to edit logs:
+      allow update: if isSignedIn() && isValidLog(incoming());
+    }
+  }
+}

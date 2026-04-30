@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Item": {
+      "title": "Inventory Item",
+      "description": "A base ingredient or stock item (spirit, mixer, bottle, etc.)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the item" },
+        "categoryId": { "type": "string", "description": "ID of the category" },
+        "unit": { "type": "string", "enum": ["ml", "oz", "shot", "bottle", "piece"], "description": "Measurement unit" },
+        "parLevel": { "type": "number", "description": "Ideal quantity to keep in stock" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name", "categoryId", "unit", "parLevel"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Inventory category (e.g. Spirit by Glass, Mixer)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Recipe": {
+      "title": "Cocktail Recipe",
+      "description": "A definition for a cocktail made from multiple items",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "itemId": { "type": "string" },
+              "amount": { "type": "number" },
+              "unit": { "type": "string" }
+            }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name", "ingredients"]
+    },
+    "InventoryLog": {
+      "title": "Inventory Log",
+      "description": "A record of stock for a specific date",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "quantity": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["count", "usage", "delivery"], "description": "Type of record" },
+        "notes": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "quantity", "date", "type", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/items/{itemId}": {
+      "schema": "Item",
+      "description": "Global inventory items"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Inventory categories"
+    },
+    "/recipes/{recipeId}": {
+      "schema": "Recipe",
+      "description": "Cocktail recipes"
+    },
+    "/inventoryLogs/{logId}": {
+      "schema": "InventoryLog",
+      "description": "History of inventory records"
+    }
+  }
+}
