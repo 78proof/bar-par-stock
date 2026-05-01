@@ -119,7 +119,7 @@ export const RecipeList: React.FC = () => {
           <p className="text-slate-500 font-medium">Standardized SOPs and ingredient builds.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="rounded-xl border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200 gap-2 h-11" onClick={() => setCategoryOpen(true)}>
+          <Button variant="outline" className="rounded-xl border-border bg-card text-muted-foreground hover:text-foreground gap-2 h-11" onClick={() => setCategoryOpen(true)}>
             <FolderPlus size={18} />
             Categories
           </Button>
@@ -129,11 +129,13 @@ export const RecipeList: React.FC = () => {
             setEditingRecipe(null);
           }
         }}>
-          <DialogTrigger render={<Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 gap-2 h-11" onClick={() => setAddOpen(true)} />}>
-            <PlusCircle size={18} />
-            New Recipe
+          <DialogTrigger asChild>
+            <Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 gap-2 h-11">
+              <PlusCircle size={18} />
+              New Recipe
+            </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-800 text-slate-200">
+          <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto bg-card border-border text-foreground">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold flex items-center gap-2">
                 {editingRecipe ? 'Modify SOP' : 'Create New SOP'}
@@ -297,9 +299,9 @@ export const RecipeList: React.FC = () => {
       </Dialog>
 
       <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-blue-500 transition-colors" size={18} />
         <Input 
-          className="pl-12 h-14 rounded-2xl bg-slate-900 border-slate-800 hover:border-slate-700 focus:border-blue-500/50 transition-all font-medium" 
+          className="pl-12 h-14 rounded-2xl bg-card border-border hover:border-slate-400 dark:hover:border-slate-600 focus:border-blue-500/50 transition-all font-medium" 
           placeholder="Search recipes..." 
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -313,14 +315,14 @@ export const RecipeList: React.FC = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <Card className="rounded-3xl border border-slate-800 bg-slate-900 overflow-hidden group hover:border-blue-500/30 transition-all">
-              <CardHeader className="bg-slate-800/30 p-6">
+            <Card className="rounded-3xl border border-border bg-card overflow-hidden group hover:border-blue-500/30 transition-all shadow-sm">
+              <CardHeader className="bg-secondary/30 p-6">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center text-2xl group-hover:bg-slate-800 transition-all">
+                  <div className="w-12 h-12 bg-card border border-border rounded-2xl flex items-center justify-center text-2xl group-hover:bg-secondary transition-all">
                     🍸
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-500 hover:text-white" onClick={() => {
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => {
                       setEditingRecipe(recipe);
                       setNewRecipe({
                         name: recipe.name,
@@ -330,40 +332,40 @@ export const RecipeList: React.FC = () => {
                     }}>
                       <Edit3 size={14} />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-500 hover:text-red-400" onClick={() => deleteRecipe(recipe.id)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-red-500" onClick={() => deleteRecipe(recipe.id)}>
                       <Trash2 size={14} />
                     </Button>
                   </div>
                 </div>
-                <CardTitle className="mt-4 text-xl font-bold text-slate-200">{recipe.name}</CardTitle>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1 italic">
+                <CardTitle className="mt-4 text-xl font-bold text-foreground">{recipe.name}</CardTitle>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 italic">
                   {categories.find(c => c.id === recipe.categoryId)?.name || 'House Standard'}
                 </p>
               </CardHeader>
-              <CardContent className="p-6 pt-0 mt-6">
+              <CardContent className="p-6 pt-0 mt-6 text-foreground">
                 <div className="space-y-4">
                    <div className="space-y-2">
                     {recipe.ingredients.map((ing, idx) => {
                       const item = items.find(i => i.id === ing.itemId);
                       return (
-                        <div key={idx} className="flex justify-between items-center p-3 bg-slate-950/50 border border-slate-800/50 rounded-xl group/item hover:border-blue-500/20 transition-colors">
-                          <span className="text-sm font-medium text-slate-400 group-hover/item:text-slate-200">{item?.name || 'Unknown Item'}</span>
-                          <span className="font-mono text-xs font-bold text-blue-400">
-                            {ing.amount} <span className="text-slate-600 text-[10px]">{ing.unit.toUpperCase()}</span>
+                        <div key={idx} className="flex justify-between items-center p-3 bg-secondary/50 border border-border/50 rounded-xl group/item hover:border-blue-500/20 transition-colors">
+                          <span className="text-sm font-medium text-muted-foreground group-hover/item:text-foreground">{item?.name || 'Unknown Item'}</span>
+                          <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+                            {ing.amount} <span className="text-muted-foreground text-[10px] uppercase">{ing.unit}</span>
                           </span>
                         </div>
                       );
                     })}
                   </div>
 
-                  <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+                  <div className="pt-4 border-t border-border flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Validated Build</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Validated Build</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest leading-none">Glass Vol</p>
-                      <p className="text-sm font-mono font-bold text-slate-400">
+                      <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest leading-none">Glass Vol</p>
+                      <p className="text-sm font-mono font-bold text-foreground opacity-70">
                         {recipe.ingredients.reduce((acc, curr) => acc + curr.amount, 0)} {recipe.ingredients[0]?.unit || 'OZ'}
                       </p>
                     </div>

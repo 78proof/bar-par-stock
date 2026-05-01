@@ -44,9 +44,9 @@ export const MinimumPar: React.FC = () => {
       </div>
 
       <div className="relative group">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-blue-500 transition-colors" size={18} />
         <Input 
-          className="pl-12 h-14 rounded-2xl bg-slate-900 border-slate-800 hover:border-slate-700 focus:border-blue-500/50 transition-all font-medium" 
+          className="pl-12 h-14 rounded-2xl bg-card border-border hover:border-slate-400 dark:hover:border-slate-600 focus:border-blue-500/50 transition-all font-medium" 
           placeholder="Search items to set par..." 
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -55,28 +55,28 @@ export const MinimumPar: React.FC = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredItems.map(item => (
-          <Card key={item.id} className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden group">
+          <Card key={item.id} className="rounded-2xl border border-border bg-card overflow-hidden group shadow-sm transition-all hover:shadow-md">
             <CardHeader className="p-4 pb-2">
                <div className="flex justify-between items-start">
-                <div className="p-2 bg-slate-800 rounded-lg group-hover:bg-slate-700 transition-colors">
-                  {categories.find(c => c.id === item.categoryId)?.type === 'wine' ? <Wine size={16} className="text-red-400" /> : <GlassWater size={16} className="text-blue-400" />}
+                <div className="p-2.5 bg-secondary rounded-xl group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 transition-colors">
+                  {categories.find(c => c.id === item.categoryId)?.type === 'wine' ? <Wine size={16} className="text-red-500" /> : <GlassWater size={16} className="text-blue-500" />}
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Category</p>
-                  <p className="text-[10px] text-slate-400 font-medium truncate max-w-[100px]">{categories.find(c => c.id === item.categoryId)?.name}</p>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest leading-none">Category</p>
+                  <p className="text-[10px] text-foreground font-bold truncate max-w-[100px] mt-1">{categories.find(c => c.id === item.categoryId)?.name}</p>
                 </div>
               </div>
-              <CardTitle className="mt-2 text-sm font-bold text-slate-200">{item.name}</CardTitle>
+              <CardTitle className="mt-2 text-sm font-bold text-foreground">{item.name}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0">
                <div className="mt-4 space-y-2">
-                <label className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Base Par Level ({item.unit})</label>
+                <label className="text-[10px] uppercase text-muted-foreground tracking-widest font-black">Base Par Level ({item.unit})</label>
                 <div className="flex gap-2">
                   <ItemParInput 
                     parLevel={item.parLevel}
                     onSave={(val) => handleUpdatePar(item.id, val)}
                   />
-                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-500">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-secondary text-muted-foreground">
                     <Target size={16} />
                   </div>
                 </div>
@@ -87,9 +87,9 @@ export const MinimumPar: React.FC = () => {
       </div>
 
       {filteredItems.length === 0 && (
-        <div className="py-20 text-center bg-slate-900/30 rounded-3xl border border-dashed border-slate-800">
-          <Target size={48} className="mx-auto text-slate-700 mb-4 opacity-20" />
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No items found matching search</p>
+        <div className="py-20 text-center bg-secondary/30 rounded-3xl border border-dashed border-border">
+          <Target size={48} className="mx-auto text-muted-foreground/20 mb-4" />
+          <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">No matches found</p>
         </div>
       )}
     </div>
@@ -114,7 +114,7 @@ const ItemParInput = ({ parLevel, onSave }: { parLevel: number, onSave: (val: nu
           onSave(num);
         }
       }}
-      className="h-10 bg-slate-950 border-slate-800 font-mono font-bold text-blue-400 focus:ring-1 focus:ring-blue-500/30"
+      className="h-10 bg-background border-border font-mono font-bold text-blue-600 dark:text-blue-400 focus:ring-2 focus:ring-blue-500/20 text-center"
     />
   );
 };

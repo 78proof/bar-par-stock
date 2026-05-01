@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useInventory } from '../hooks/useInventory';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
@@ -12,7 +12,8 @@ import {
   AlertCircle,
   MoreVertical,
   ChevronRight,
-  TrendingDown
+  TrendingDown,
+  History
 } from 'lucide-react';
 import { 
   Popover, 
@@ -27,42 +28,108 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 
 export const ParCutting: React.FC = () => {
-  const { items, categories, addLog } = useInventory();
+  const { items, categories, addLog, logs, recipes } = useInventory();
   const [date, setDate] = useState<Date>(new Date());
   const [search, setSearch] = useState('');
   const [isSelectorOpen, setSelectorOpen] = useState(false);
   const [selectorSearch, setSelectorSearch] = useState('');
-
-  const filteredSelectorItems = items.filter(item => 
-    item.name.toLowerCase().includes(selectorSearch.toLowerCase())
-  );
-  const [filter, setFilter] = useState<string>('all');
   
   const [mode, setMode] = useState<'count' | 'delivery'>('count');
   const [activeTab, setActiveTab] = useState<'entry' | 'usage' | 'sales'>('entry');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  const selectedDateStr = format(date, 'yyyy-MM-dd');
+
+  // Load existing counts for the selected date if they exist in logs
+  useEffect(() => {
+    const existingLogs = logs.filter(l => l.date === selectedDateStr);
+    const initialCounts: Record<string, number> = {};
+    existingLogs.forEach(log => {
+      if ((mode === 'count' && (log.type === 'count' || log.type === 'sales')) || 
+          (mode === 'delivery' && log.type === 'delivery')) {
+        initialCounts[log.itemId] = log.quantity;
+      }
+    });
+    setCounts(initialCounts);
+  }, [selectedDateStr, mode, logs]);
+
   const getCategoryName = (id: string) => {
     return categories.find(c => c.id === id)?.name || 'Other';
   };
 
   const filteredItems = items.filter(item => {
-    const matchesFilter = filter === 'all' || item.categoryId === filter;
     const itemCategoryName = categories.find(c => c.id === item.categoryId)?.name.toLowerCase() || '';
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
                           itemCategoryName.includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesSearch;
   });
 
-  // Calculate usage and sales items
-  const usageItems = useMemo(() => {
-    return items.filter(i => !i.isGlass && !i.name.toLowerCase().includes('(glass)') && counts[i.id] !== undefined);
+  const filteredSelectorItems = items.filter(item => 
+    item.name.toLowerCase().includes(selectorSearch.toLowerCase())
+  );
+
+  // Calculate usage and sales items including recipe deductions formulas
+  const salesItemsReport = useMemo(() => {
+    return items
+      .filter(i => i.isGlass)
+      .map(item => ({
+        ...item,
+        sold: counts[item.id] || 0
+      }))
+      .filter(i => i.sold > 0);
   }, [items, counts]);
 
-  const salesItems = useMemo(() => {
-    return items.filter(i => (i.isGlass || i.name.toLowerCase().includes('(glass)')) && counts[i.id] !== undefined);
-  }, [items, counts]);
+  const usageItemsReport = useMemo(() => {
+    // 1. Get raw counts (physical stock reconciliation)
+    const report = items
+      .filter(i => !i.isGlass)
+      .map(item => {
+        const closing = counts[item.id] !== undefined ? counts[item.id] : item.currentStock;
+        const opening = item.currentStock;
+        
+        // 2. Calculate Theoretical Usage from Sales
+        let theoreticalUsage = 0;
+        
+        // Check recipes
+        salesItemsReport.forEach(sale => {
+          const recipe = recipes.find(r => r.name.toLowerCase() === sale.name.toLowerCase());
+          if (recipe) {
+            const ingredient = recipe.ingredients.find(ing => ing.itemId === item.id);
+            if (ingredient) {
+              theoreticalUsage += (ingredient.amount * sale.sold);
+            }
+          }
+        });
+
+        // Check Direct glass-bottle links (oz -> ml conversion)
+        salesItemsReport.forEach(sale => {
+          const isLinked = sale.targetBottleId === item.id || 
+                           sale.name.toLowerCase().startsWith(item.name.toLowerCase());
+          if (isLinked && !recipes.some(r => r.name.toLowerCase() === sale.name.toLowerCase())) {
+            // Standard conversion: sale.sold is in 'oz' or 'units', bottle is in 'ml'
+            // We assume 1 unit of sale corresponds to some oz amount. 
+            // If the sale item unit is 'oz', then quantity is oz.
+            const conversionFactor = 29.57; // 1 oz = 29.57 ml
+            theoreticalUsage += (sale.sold * conversionFactor);
+          }
+        });
+
+        const physicalVariance = (opening - theoreticalUsage) - closing;
+
+        return {
+          ...item,
+          opening,
+          closing,
+          theoreticalUsage,
+          physicalVariance,
+          totalUsage: opening - closing
+        };
+      })
+      .filter(i => i.totalUsage > 0 || i.theoreticalUsage > 0 || counts[i.id] !== undefined);
+      
+    return report;
+  }, [items, counts, salesItemsReport, recipes]);
 
   const handleSaveAll = async () => {
     const logEntries = Object.entries(counts).filter(([_, qty]) => qty !== undefined && qty > 0);
@@ -73,13 +140,10 @@ export const ParCutting: React.FC = () => {
 
     setIsSaving(true);
     try {
-      const dateStr = format(date, 'yyyy-MM-dd');
       for (const [itemId, quantity] of logEntries) {
         const item = items.find(i => i.id === itemId);
         const isGlass = item?.isGlass || item?.name.toLowerCase().includes('(glass)');
         
-        // If mode is 'count', and it's a glass item, we treat it as 'sales' (triggering deductions)
-        // Otherwise it's a physical reconciliation 'count'
         const logType = mode === 'count' 
           ? (isGlass ? 'sales' : 'count') 
           : 'delivery';
@@ -87,15 +151,14 @@ export const ParCutting: React.FC = () => {
         await addLog({
           itemId,
           quantity,
-          date: dateStr,
+          date: selectedDateStr,
           type: logType,
           notes: mode === 'count' 
-            ? (isGlass ? `Daily Sales Entry (${dateStr})` : `Physical Inventory Count (${dateStr})`)
-            : `Stock Delivery Received (${dateStr})`
+            ? (isGlass ? `Daily Sales (${selectedDateStr})` : `Inventory Count (${selectedDateStr})`)
+            : `Delivery Received (${selectedDateStr})`
         });
       }
-      toast.success(`Successfully recorded ${logEntries.length} ${mode} records`);
-      setCounts({});
+      toast.success(`Recorded ${logEntries.length} ${mode} entries for ${selectedDateStr}`);
     } catch (e) {
       toast.error("Failed to save records");
     } finally {
@@ -105,7 +168,7 @@ export const ParCutting: React.FC = () => {
 
   const handleCountChange = (itemId: string, value: string) => {
     const num = parseFloat(value);
-    setCounts({ ...counts, [itemId]: isNaN(num) ? 0 : num });
+    setCounts(prev => ({ ...prev, [itemId]: isNaN(num) ? 0 : num }));
   };
 
   return (
@@ -113,59 +176,65 @@ export const ParCutting: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Par Cutting</h1>
-          <p className="text-slate-500 font-medium">Record current stock levels for {format(date, 'PPP')}</p>
+          <p className="text-slate-500 font-medium tracking-tight">Data Entry for {format(date, 'PPP')}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-xl h-11">
             <button 
-              onClick={() => { setMode('count'); setCounts({}); }}
+              onClick={() => setMode('count')}
               className={cn(
                 "px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                mode === 'count' ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                mode === 'count' ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" : "text-slate-500 hover:text-slate-300"
               )}
             >
               Par Cut (Night)
             </button>
             <button 
-              onClick={() => { setMode('delivery'); setCounts({}); }}
+              onClick={() => setMode('delivery')}
               className={cn(
                 "px-4 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                mode === 'delivery' ? "bg-green-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                mode === 'delivery' ? "bg-green-600 text-white shadow-lg shadow-green-900/20" : "text-slate-500 hover:text-slate-300"
               )}
             >
               Receiving (Day)
             </button>
           </div>
           <Popover>
-            <PopoverTrigger render={<Button variant="outline" className={cn("rounded-xl h-11 border-slate-800 bg-slate-900 justify-start font-normal px-4 min-w-[200px] text-slate-300 hover:bg-slate-800")} />}>
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date ? format(date, "PPP") : <span>Pick a date</span>}
-          </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-800" align="end">
+            <PopoverTrigger>
+              <Button variant="outline" className={cn("rounded-xl h-11 border-border bg-card justify-start font-bold px-4 min-w-[200px] text-foreground hover:bg-secondary shadow-sm")}>
+                <CalendarIcon className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                {format(date, "PPP")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-card border-border" align="end">
               <Calendar
                 mode="single"
                 selected={date}
                 onSelect={(d) => d && setDate(d)}
                 initialFocus
-                className="bg-slate-900 text-slate-200"
+                className="bg-card text-foreground"
               />
             </PopoverContent>
           </Popover>
           <Button 
             className={cn(
-              "rounded-xl h-11 px-6 shadow-lg gap-2 font-bold",
+              "rounded-xl h-11 px-6 shadow-lg gap-2 font-bold transition-all",
               mode === 'count' ? "bg-blue-600 hover:bg-blue-500 shadow-blue-900/20" : "bg-green-600 hover:bg-green-500 shadow-green-900/20"
             )}
             onClick={handleSaveAll}
             disabled={isSaving || Object.keys(counts).length === 0}
           >
-            {isSaving ? <TrendingDown className="animate-pulse" /> : (mode === 'count' ? <Save size={18} /> : <Plus size={18} />)}
-            {isSaving ? 'Saving...' : (mode === 'count' ? 'Finalize Night Cut' : 'Confirm Delivery')}
+            {isSaving ? <TrendingDown size={18} className="animate-pulse" /> : <CheckCircle2 size={18} />}
+            {isSaving ? 'Processing...' : (mode === 'count' ? 'Finalize Night Cut' : 'Confirm Delivery')}
           </Button>
         </div>
       </div>
 
-      <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-6 shadow-sm">
+      <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 space-y-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+          <History size={120} />
+        </div>
+
         {mode === 'count' && (
           <div className="flex border-b border-slate-800 -mx-6 px-6 mb-6">
             <button 
@@ -175,8 +244,8 @@ export const ParCutting: React.FC = () => {
                 activeTab === 'entry' ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
               )}
             >
-              Entry
-              {activeTab === 'entry' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
+              Entry Mode
+              {activeTab === 'entry' && <motion.div layoutId="activeTabMode" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
             </button>
             <button 
               onClick={() => setActiveTab('usage')}
@@ -185,8 +254,8 @@ export const ParCutting: React.FC = () => {
                 activeTab === 'usage' ? "text-blue-400" : "text-slate-500 hover:text-slate-300"
               )}
             >
-              Usage Report
-              {activeTab === 'usage' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
+              Usage Summary
+              {activeTab === 'usage' && <motion.div layoutId="activeTabMode" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
             </button>
             <button 
               onClick={() => setActiveTab('sales')}
@@ -196,7 +265,7 @@ export const ParCutting: React.FC = () => {
               )}
             >
               Sales Report
-              {activeTab === 'sales' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
+              {activeTab === 'sales' && <motion.div layoutId="activeTabMode" className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500" />}
             </button>
           </div>
         )}
@@ -205,30 +274,28 @@ export const ParCutting: React.FC = () => {
           <>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1 group">
-                <div className="relative flex items-center">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors" size={18} />
-                  <button 
-                    onClick={() => setSelectorOpen(!isSelectorOpen)}
-                    className="w-full pl-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center text-slate-400 transition-all font-medium text-left"
-                  >
-                    {search || "Search items to count..."}
-                  </button>
-                </div>
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-400 transition-colors" size={18} />
+                <button 
+                  onClick={() => setSelectorOpen(!isSelectorOpen)}
+                  className="w-full pl-12 h-14 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 flex items-center text-slate-400 transition-all font-bold text-left shadow-inner"
+                >
+                  {search || "Search inventory item..."}
+                </button>
 
                 {isSelectorOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setSelectorOpen(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[300px]">
-                      <div className="p-3 border-b border-slate-800 bg-slate-950/50">
+                    <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[400px]">
+                      <div className="p-4 border-b border-slate-800 bg-slate-950/50">
                         <Input 
                           autoFocus
-                          placeholder="Type to filter..."
+                          placeholder="Filter items..."
                           value={selectorSearch}
                           onChange={e => setSelectorSearch(e.target.value)}
-                          className="h-9 bg-slate-950 border-slate-800 rounded-xl"
+                          className="h-12 bg-slate-950 border-slate-800 rounded-xl font-bold"
                         />
                       </div>
-                      <div className="overflow-y-auto p-1 custom-scrollbar">
+                      <div className="overflow-y-auto p-2 custom-scrollbar">
                         {filteredSelectorItems.map(item => (
                           <button
                             key={item.id}
@@ -237,43 +304,36 @@ export const ParCutting: React.FC = () => {
                               setSelectorOpen(false);
                               setSelectorSearch('');
                             }}
-                            className="w-full text-left px-4 py-2.5 rounded-xl text-xs transition-all hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between group"
+                            className="w-full text-left px-4 py-3 rounded-xl text-xs transition-all hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between group"
                           >
-                            <span>{item.name}</span>
-                            <span className="text-[9px] text-slate-600 font-bold uppercase group-hover:text-blue-400">{getCategoryName(item.categoryId)}</span>
+                            <span className="font-bold">{item.name}</span>
+                            <span className="text-[9px] text-slate-600 font-black uppercase group-hover:text-blue-400">{getCategoryName(item.categoryId)}</span>
                           </button>
                         ))}
-                        {filteredSelectorItems.length === 0 && (
-                          <div className="p-8 text-center text-slate-600 text-[10px]">No matches for "{selectorSearch}"</div>
-                        )}
                       </div>
                     </div>
                   </>
                 )}
               </div>
-              <Select value={filter} onValueChange={(v) => setFilter(v)}>
-                <SelectTrigger className="w-full sm:w-[200px] h-12 rounded-2xl bg-slate-950 border-slate-800 font-medium text-slate-200">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Button 
+                variant="outline" 
+                onClick={() => setSearch('')}
+                className="h-14 px-6 rounded-2xl border-slate-800 bg-slate-950 text-slate-500 font-bold"
+              >
+                Clear
+              </Button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-slate-800">
+            <div className="overflow-hidden rounded-2xl border border-slate-800 shadow-xl">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800/40 border-b border-slate-800">
                   <tr>
-                    <th className="text-left p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Item</th>
-                    <th className="text-center p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500 hidden sm:table-cell">Unit</th>
-                    <th className="text-center p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Base Par</th>
-                    <th className="text-center p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Last Stock</th>
-                    <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500 w-[140px]">
-                      {mode === 'count' ? 'Final Stock / Sold' : 'Amount Received'}
+                    <th className="text-left p-4 font-bold text-[9px] uppercase tracking-[0.2em] text-slate-500">Inventory Item</th>
+                    <th className="text-center p-4 font-bold text-[9px] uppercase tracking-[0.2em] text-slate-500 hidden sm:table-cell">Basis</th>
+                    <th className="text-center p-4 font-bold text-[9px] uppercase tracking-[0.2em] text-slate-500">Par</th>
+                    <th className="text-center p-4 font-bold text-[9px] uppercase tracking-[0.2em] text-slate-500">On Hand</th>
+                    <th className="text-right p-4 font-bold text-[9px] uppercase tracking-[0.2em] text-slate-500 w-[160px]">
+                      {mode === 'count' ? 'Night Count' : 'Qty Received'}
                     </th>
                   </tr>
                 </thead>
@@ -282,21 +342,24 @@ export const ParCutting: React.FC = () => {
                     <tr key={item.id} className="hover:bg-slate-800/30 transition-colors group">
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div className="font-bold text-slate-200">{item.name}</div>
-                          {(item.isGlass || item.name.toLowerCase().includes('(glass)')) && (
-                            <div className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-[8px] font-black uppercase text-blue-500 border border-blue-500/20">SOP</div>
+                          <div className={cn(
+                            "font-bold",
+                            item.isGlass ? "text-blue-400" : "text-slate-200"
+                          )}>{item.name}</div>
+                          {item.isGlass && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-blue-500/10 text-[7px] font-black uppercase text-blue-500 border border-blue-500/20">SOP</span>
                           )}
                         </div>
-                        <div className="text-[10px] uppercase tracking-widest text-slate-600 sm:hidden font-bold">{item.unit}</div>
+                        <div className="text-[10px] uppercase font-black tracking-widest text-slate-700 sm:hidden">{item.unit}</div>
                       </td>
-                      <td className="p-4 text-center text-slate-500 hidden sm:table-cell font-mono text-xs">{item.unit}</td>
-                      <td className="p-4 text-center font-mono font-bold text-slate-400">{item.parLevel}</td>
+                      <td className="p-4 text-center text-slate-600 hidden sm:table-cell font-mono text-[10px] font-bold">{item.unit}</td>
+                      <td className="p-4 text-center font-mono font-bold text-slate-500 text-xs">{item.parLevel}</td>
                       <td className="p-4 text-center">
                         <span className={cn(
-                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                          "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border",
                           item.currentStock < item.parLevel 
-                          ? "bg-red-500/10 text-red-400 border-red-500/20" 
-                          : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                          ? "bg-red-500/10 text-red-500 border-red-500/20" 
+                          : "bg-slate-950 text-slate-400 border-slate-800"
                         )}>
                           {item.currentStock}
                         </span>
@@ -304,91 +367,99 @@ export const ParCutting: React.FC = () => {
                       <td className="p-4 text-right">
                         <Input 
                           type="number"
-                          className="h-10 text-right font-mono font-bold text-blue-400 focus-visible:ring-blue-500/50 rounded-xl bg-slate-950 border-slate-800 group-hover:border-slate-700 transition-all placeholder:text-slate-800"
-                          placeholder={item.currentStock.toString()}
+                          className="h-11 text-right font-mono font-bold text-blue-500 focus-visible:ring-blue-500/30 rounded-xl bg-slate-950 border-slate-800 group-hover:border-slate-600 shadow-inner"
+                          placeholder={counts[item.id] !== undefined ? '' : item.currentStock.toString()}
                           value={counts[item.id] === undefined ? '' : counts[item.id]}
                           onChange={(e) => handleCountChange(item.id, e.target.value)}
                         />
                       </td>
                     </tr>
                   ))}
+                  {filteredItems.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-20 text-center text-slate-700 font-bold uppercase tracking-widest text-[10px]">No items matching search</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </>
         ) : activeTab === 'usage' ? (
-          <div className="overflow-hidden rounded-2xl border border-slate-800">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-800/40 border-b border-slate-800">
-                <tr>
-                  <th className="text-left p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Item</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Opening</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Closing</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Usage</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500 w-[100px]">Edit Qty</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {usageItems.map((item) => {
-                  const closing = counts[item.id] || 0;
-                  const usage = Math.max(0, item.currentStock - closing);
-                  return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Usage Analysis (Selected Day)</h2>
+              <CardDescription>Real-time calculation based on counts</CardDescription>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-800 shadow-xl overflow-x-auto">
+              <table className="w-full text-[11px] sm:text-sm">
+                <thead className="bg-slate-800/40 border-b border-slate-800">
+                  <tr>
+                    <th className="text-left p-3 font-bold text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">Item</th>
+                    <th className="text-right p-3 font-bold text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">Opening (A)</th>
+                    <th className="text-right p-3 font-bold text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">Formula (B)</th>
+                    <th className="text-right p-3 font-bold text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">Closing (C)</th>
+                    <th className="text-right p-3 font-bold text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 whitespace-nowrap">Usage (A-C)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {usageItemsReport.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-4 font-bold text-slate-200">{item.name}</td>
-                      <td className="p-4 text-right font-mono text-slate-500">{item.currentStock}</td>
-                      <td className="p-4 text-right font-mono text-slate-300">{closing}</td>
-                      <td className="p-4 text-right font-mono font-bold text-red-400">{usage}</td>
-                      <td className="p-4 text-right">
-                        <Input 
-                          type="number"
-                          className="h-8 text-right bg-slate-950 border-slate-800 text-xs font-mono"
-                          value={counts[item.id] || ''}
-                          onChange={(e) => handleCountChange(item.id, e.target.value)}
-                        />
+                      <td className="p-3 font-bold text-slate-200">
+                        <div className="flex flex-col">
+                          <span>{item.name}</span>
+                          <span className="text-[8px] text-slate-600 font-bold uppercase">{item.unit}</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-right font-mono text-slate-500">{item.opening.toFixed(1)}</td>
+                      <td className="p-3 text-right font-mono text-blue-400">-{item.theoreticalUsage.toFixed(1)}</td>
+                      <td className="p-3 text-right font-mono text-slate-300">{item.closing.toFixed(1)}</td>
+                      <td className="p-3 text-right font-mono font-bold text-red-500">
+                        {item.totalUsage.toFixed(1)}
                       </td>
                     </tr>
-                  );
-                })}
-                {usageItems.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-500 italic text-xs">No count data entered yet</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ))}
+                  {usageItemsReport.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="p-20 text-center text-slate-700 font-bold uppercase tracking-widest text-[10px]">No usage detected for this date</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-800/40 border-b border-slate-800">
-                <tr>
-                  <th className="text-left p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Service Items (SOP)</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500">Units Sold Today</th>
-                  <th className="text-right p-4 font-bold text-[10px] uppercase tracking-widest text-slate-500 w-[100px]">Edit Qty</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {salesItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="p-4 font-bold text-slate-200">{item.name}</td>
-                    <td className="p-4 text-right font-mono font-bold text-blue-400">{counts[item.id]}</td>
-                    <td className="p-4 text-right">
-                      <Input 
-                        type="number"
-                        className="h-8 text-right bg-slate-950 border-slate-800 text-xs font-mono"
-                        value={counts[item.id] || ''}
-                        onChange={(e) => handleCountChange(item.id, e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-                {salesItems.length === 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Sales Dashboard (Selected Day)</h2>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-800 shadow-xl">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-800/40 border-b border-slate-800">
                   <tr>
-                    <td colSpan={3} className="p-12 text-center text-slate-500 italic text-xs">No sales data entered yet</td>
+                    <th className="text-left p-4 font-bold text-[9px] uppercase tracking-widest text-slate-500">Service SOP Item</th>
+                    <th className="text-right p-4 font-bold text-[9px] uppercase tracking-widest text-slate-500">Quantity Sold</th>
+                    <th className="text-right p-4 font-bold text-[9px] uppercase tracking-widest text-slate-500 w-[120px]">Basis</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {salesItemsReport.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="p-4 flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
+                        <div className="font-bold text-slate-200">{item.name}</div>
+                      </td>
+                      <td className="p-4 text-right font-mono font-bold text-blue-400 text-lg">{item.sold}</td>
+                      <td className="p-4 text-right text-[10px] text-slate-600 font-black uppercase">{item.unit}</td>
+                    </tr>
+                  ))}
+                  {salesItemsReport.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="p-20 text-center text-slate-700 font-bold uppercase tracking-widest text-[10px]">No sales recorded for this date</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

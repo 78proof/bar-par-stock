@@ -73,9 +73,11 @@ export const InventoryList: React.FC = () => {
   const [newItem, setNewItem] = useState<Omit<Item, 'id' | 'updatedAt' | 'createdBy'>>({
     name: '',
     categoryId: '',
-    unit: 'oz',
+    unit: 'bottle',
     parLevel: 1,
-    currentStock: 0
+    currentStock: 0,
+    isGlass: false,
+    mlSize: 750
   });
 
   // Effect to set initial category
@@ -232,29 +234,54 @@ export const InventoryList: React.FC = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Unit</Label>
-                    <Select value={newItem.unit} onValueChange={(v) => setNewItem({...newItem, unit: v})}>
+                    <Select value={newItem.unit} onValueChange={(v) => setNewItem({...newItem, unit: v, isGlass: v === 'oz' || v === 'shot'})}>
                       <SelectTrigger className="w-full bg-slate-950 border-slate-800 text-slate-200">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
-                        <SelectItem value="oz">Ounces (oz)</SelectItem>
-                        <SelectItem value="ml">ml</SelectItem>
-                        <SelectItem value="shot">Shot</SelectItem>
                         <SelectItem value="bottle">Bottle</SelectItem>
+                        <SelectItem value="ml">ml (Inventory)</SelectItem>
+                        <SelectItem value="oz">Ounces (Glass Sales)</SelectItem>
+                        <SelectItem value="shot">Shot (Glass Sales)</SelectItem>
                         <SelectItem value="piece">Piece</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="par" className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Par Level (Quantity Needed)</Label>
-                  <Input 
-                    id="par" 
-                    type="number" 
-                    value={newItem.parLevel}
-                    onChange={e => setNewItem({...newItem, parLevel: parseFloat(e.target.value)})}
-                    className="bg-slate-950 border-slate-800"
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="par" className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Par Level</Label>
+                    <Input 
+                      id="par" 
+                      type="number" 
+                      value={newItem.parLevel}
+                      onChange={e => setNewItem({...newItem, parLevel: parseFloat(e.target.value)})}
+                      className="bg-slate-950 border-slate-800"
+                    />
+                  </div>
+                  {!newItem.isGlass && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="mlSize" className="text-[10px] uppercase text-slate-500 tracking-wider font-bold">Bottle Size (ml)</Label>
+                      <Input 
+                        id="mlSize" 
+                        type="number" 
+                        value={newItem.mlSize}
+                        onChange={e => setNewItem({...newItem, mlSize: parseFloat(e.target.value)})}
+                        className="bg-slate-950 border-slate-800"
+                        placeholder="750"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                  <input 
+                    type="checkbox" 
+                    id="isGlass" 
+                    checked={newItem.isGlass} 
+                    onChange={e => setNewItem({...newItem, isGlass: e.target.checked})}
+                    className="w-4 h-4 rounded border-slate-800 bg-slate-900 text-blue-600 focus:ring-blue-500/20"
                   />
+                  <Label htmlFor="isGlass" className="text-xs font-bold text-slate-400 cursor-pointer">This is a Service SOP (Glass/Peg Sales)</Label>
                 </div>
               </div>
               <DialogFooter>
@@ -364,7 +391,9 @@ export const InventoryList: React.FC = () => {
                     categoryId: item.categoryId,
                     unit: item.unit,
                     parLevel: item.parLevel,
-                    currentStock: item.currentStock || 0
+                    currentStock: item.currentStock || 0,
+                    isGlass: item.isGlass || false,
+                    mlSize: item.mlSize || 750
                   });
                 }}
               />
@@ -392,7 +421,9 @@ export const InventoryList: React.FC = () => {
                     categoryId: item.categoryId,
                     unit: item.unit,
                     parLevel: item.parLevel,
-                    currentStock: item.currentStock || 0
+                    currentStock: item.currentStock || 0,
+                    isGlass: item.isGlass || false,
+                    mlSize: item.mlSize || 750
                   });
                 }}
               />

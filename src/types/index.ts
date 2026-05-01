@@ -14,6 +14,8 @@ export interface Item {
   parLevel: number;
   currentStock: number;
   isGlass?: boolean;
+  mlSize?: number; // Total volume in ml for bottles
+  targetBottleId?: string; // Links a glass to its bottle
   type?: 'spirit' | 'wine' | 'soft_drink' | 'other';
   updatedAt: any;
   createdBy: string;

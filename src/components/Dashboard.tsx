@@ -56,71 +56,71 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm">
+        <Card className="rounded-3xl border border-border bg-card shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Inventory Health</p>
-              <Activity className="text-blue-400" size={16} />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Inventory Health</p>
+              <Activity className="text-blue-500" size={16} />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <h2 className="text-3xl font-bold text-slate-200">{Math.round(stockHealth)}%</h2>
-              <span className="text-xs text-blue-400 font-bold flex items-center">
+              <h2 className="text-3xl font-bold">{Math.round(stockHealth)}%</h2>
+              <span className="text-xs text-blue-500 font-bold flex items-center">
                 <ArrowUpRight size={12} />
                 +2.5%
               </span>
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase tracking-widest">Status: Stable</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-widest">Status: Stable</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm">
+        <Card className="rounded-3xl border border-border bg-card shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Wine Shortage</p>
-              <AlertTriangle className="text-red-400" size={16} />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Wine Shortage</p>
+              <AlertTriangle className="text-red-500" size={16} />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <h2 className="text-3xl font-bold text-slate-200">{lowWine.length}</h2>
+              <h2 className="text-3xl font-bold">{lowWine.length}</h2>
               <span className="text-[10px] text-red-500/80 font-bold flex items-center uppercase tracking-widest">
                 Bottles
               </span>
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase tracking-widest">Action: Reorder</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-widest">Action: Reorder</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm">
+        <Card className="rounded-3xl border border-border bg-card shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bar Shortage</p>
-              <Package className="text-blue-400" size={16} />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Bar Shortage</p>
+              <Package className="text-blue-500" size={16} />
             </div>
             <div className="mt-2">
-              <h2 className="text-3xl font-bold text-slate-200">{lowLiquor.length}</h2>
+              <h2 className="text-3xl font-bold">{lowLiquor.length}</h2>
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase tracking-widest">Low par items</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-widest">Low par items</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm">
+        <Card className="rounded-3xl border border-border bg-card shadow-sm">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Recipes</p>
-              <GlassWater className="text-blue-400" size={16} />
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active Recipes</p>
+              <GlassWater className="text-blue-500" size={16} />
             </div>
             <div className="mt-2">
-              <h2 className="text-3xl font-bold text-slate-200">{recipes.length}</h2>
+              <h2 className="text-3xl font-bold">{recipes.length}</h2>
             </div>
-            <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase tracking-widest">Standardized SOPs</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-widest">Standardized SOPs</p>
           </CardContent>
         </Card>
       </div>
 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm overflow-hidden">
-          <CardHeader className="border-b border-slate-800 pb-4">
-            <CardTitle className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Stock Distribution</CardTitle>
+        <Card className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden text-card-foreground">
+          <CardHeader className="border-b border-border pb-4">
+            <CardTitle className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">Stock Distribution</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px] pt-6">
             <ResponsiveContainer width="100%" height="100%">
@@ -140,7 +140,7 @@ export const Dashboard: React.FC = () => {
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em' }} />
@@ -149,27 +149,27 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border border-slate-800 bg-slate-900 shadow-sm overflow-hidden">
-          <CardHeader className="border-b border-slate-800 pb-4">
-            <CardTitle className="text-sm font-bold uppercase tracking-[0.2em] text-red-400 flex items-center gap-2">
+        <Card className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
+          <CardHeader className="border-b border-border pb-4">
+            <CardTitle className="text-sm font-bold uppercase tracking-[0.2em] text-red-500 flex items-center gap-2">
               <AlertTriangle size={14} /> Attention Needed
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-3">
               {lowStockItems.slice(0, 5).map(item => (
-                <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-950 border border-slate-800/50 group hover:border-red-500/30 transition-all">
+                <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-border group hover:border-red-500/30 transition-all">
                   <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-bold text-xs text-red-400">
+                    <div className="w-11 h-11 rounded-xl bg-card border border-border flex items-center justify-center font-mono font-bold text-xs text-red-500">
                       {Math.round((item.currentStock / item.parLevel) * 100)}%
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-slate-200">{item.name}</p>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{getCategoryName(item.categoryId)}</p>
+                      <p className="font-bold text-sm text-foreground">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{getCategoryName(item.categoryId)}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-sm font-bold text-slate-400">{item.currentStock} / {item.parLevel}</p>
+                    <p className="font-mono text-sm font-bold text-muted-foreground">{item.currentStock} / {item.parLevel}</p>
                     <p className="text-[10px] text-red-500/50 font-bold uppercase tracking-widest">Short: {item.parLevel - item.currentStock}</p>
                   </div>
                 </div>
