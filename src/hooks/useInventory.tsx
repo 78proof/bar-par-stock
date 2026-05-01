@@ -48,40 +48,34 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // We listen to auth changes because some rules might depend on it
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) return;
+    // Start syncing immediately since rules are public
+    const itemsQuery = query(collection(db, 'items'), orderBy('name'));
+    const unsubscribeItems = onSnapshot(itemsQuery, (snapshot) => {
+      setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
+      setLoading(false);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'items'));
 
-      const itemsQuery = query(collection(db, 'items'), orderBy('name'));
-      const unsubscribeItems = onSnapshot(itemsQuery, (snapshot) => {
-        setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
-        setLoading(false);
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'items'));
+    const categoriesQuery = query(collection(db, 'categories'), orderBy('name'));
+    const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'categories'));
 
-      const categoriesQuery = query(collection(db, 'categories'), orderBy('name'));
-      const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
-        setCategories(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category)));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'categories'));
+    const recipesQuery = query(collection(db, 'recipes'), orderBy('name'));
+    const unsubscribeRecipes = onSnapshot(recipesQuery, (snapshot) => {
+      setRecipes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Recipe)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'recipes'));
 
-      const recipesQuery = query(collection(db, 'recipes'), orderBy('name'));
-      const unsubscribeRecipes = onSnapshot(recipesQuery, (snapshot) => {
-        setRecipes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Recipe)));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'recipes'));
+    const logsQuery = query(collection(db, 'inventoryLogs'), orderBy('createdAt', 'desc'));
+    const unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
+      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryLog)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventoryLogs'));
 
-      const logsQuery = query(collection(db, 'inventoryLogs'), orderBy('createdAt', 'desc'));
-      const unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
-        setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryLog)));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventoryLogs'));
-
-      return () => {
-        unsubscribeItems();
-        unsubscribeCategories();
-        unsubscribeRecipes();
-        unsubscribeLogs();
-      };
-    });
-
-    return () => unsubscribeAuth();
+    return () => {
+      unsubscribeItems();
+      unsubscribeCategories();
+      unsubscribeRecipes();
+      unsubscribeLogs();
+    };
   }, []);
 
   const capitalize = (str: string) => str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');

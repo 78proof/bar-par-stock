@@ -87,47 +87,30 @@ service cloud.firestore {
     }
 
     // --- Resources ---
+    // Modified to allow public access as requested
 
     match /categories/{categoryId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
 
     match /items/{itemId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(itemId);
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if true;
     }
 
     match /recipes/{recipeId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(recipeId);
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if true;
     }
 
     match /inventoryLogs/{logId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming(), false);
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if true;
     }
 
     match /reminders/{reminderId} {
-      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
-      allow create: if isSignedIn() && isValidReminder(incoming());
-      allow update: if isSignedIn() && resource.data.createdBy == request.auth.uid 
-        && incoming().diff(existing()).affectedKeys().hasAny(['text', 'completed']);
-      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow read, write: if true;
     }
 
     match /notes/{noteId} {
-      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
-      allow create: if isSignedIn() && isValidNote(incoming());
-      allow update: if isSignedIn() && resource.data.createdBy == request.auth.uid 
-        && incoming().diff(existing()).affectedKeys().hasAny(['title', 'content']);
-      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow read, write: if true;
     }
   }
 }

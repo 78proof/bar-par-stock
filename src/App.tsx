@@ -19,17 +19,17 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // Start anonymous login in background
+    loginAnonymously().catch(console.error);
+    
     return onAuthStateChanged(auth, (u) => {
-      if (!u) {
-        // Silently sign in if not logged in
-        loginAnonymously().catch(console.error);
-      }
       setUser(u);
       setReady(true);
     });
   }, []);
 
-  if (!ready || !user) return null;
+  // Show a minor loading blur but allow app to render if possibly ready
+  if (!ready) return null;
 
   return (
     <InventoryProvider>
