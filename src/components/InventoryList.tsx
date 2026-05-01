@@ -16,11 +16,8 @@ import {
   Wine,
   Tag,
   FolderPlus,
-  ArrowRight,
-  Database,
-  RefreshCw
+  ArrowRight
 } from 'lucide-react';
-import { seedDatabase } from '../lib/seeder';
 import { auth } from '../lib/firebase';
 import { 
   Select, 
@@ -54,21 +51,6 @@ export const InventoryList: React.FC = () => {
   const [isCategoryOpen, setCategoryOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [isSeeding, setIsSeeding] = useState(false);
-
-  const handleSeed = async () => {
-    if (!auth.currentUser) return;
-    setIsSeeding(true);
-    try {
-      await seedDatabase(auth.currentUser.uid);
-      toast.success("Catalogues synced successfully!");
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to sync catalogues");
-    } finally {
-      setIsSeeding(false);
-    }
-  };
 
   const [newItem, setNewItem] = useState<Omit<Item, 'id' | 'updatedAt' | 'createdBy'>>({
     name: '',
@@ -144,15 +126,6 @@ export const InventoryList: React.FC = () => {
           <p className="text-slate-500 font-medium">Manage your bar stock and par levels.</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            className="rounded-xl border-slate-800 bg-slate-900 text-blue-400 hover:text-blue-300 gap-2 h-11"
-            onClick={handleSeed}
-            disabled={isSeeding}
-          >
-            {isSeeding ? <RefreshCw size={18} className="animate-spin" /> : <Database size={18} />}
-            {isSeeding ? "Syncing..." : "Sync Catalogues"}
-          </Button>
           <Button variant="outline" className="rounded-xl border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200 gap-2 h-11" onClick={() => setCategoryOpen(true)}>
             <FolderPlus size={18} />
             Categories

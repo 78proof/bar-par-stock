@@ -21,7 +21,6 @@ import {
 import { Button } from './ui/button';
 import { auth, logout } from '../lib/firebase';
 import { useInventory } from '../hooks/useInventory';
-import { AdminSeeder } from './AdminSeeder';
 
 interface NavItem {
   id: string;
@@ -100,7 +99,6 @@ export const Layout: React.FC<{
         </nav>
 
         <div className="p-4 border-t border-border dark:border-slate-800 space-y-4">
-          <AdminSeeder />
           <div className="flex items-center justify-between px-3 py-2 bg-secondary rounded-xl">
              <span className="text-[10px] uppercase font-bold text-muted-foreground">Appearance</span>
              <button 
