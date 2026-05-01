@@ -21,7 +21,17 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const login = () => signInWithPopup(auth, googleProvider);
-export const loginAnonymously = () => signInAnonymously(auth);
+export const loginAnonymously = async () => {
+  try {
+    return await signInAnonymously(auth);
+  } catch (error: any) {
+    if (error.code === 'auth/admin-restricted-operation') {
+      console.warn("Anonymous authentication is disabled in your Firebase Console. Since rules are public, the app will continue to function without identity.");
+      return null;
+    }
+    throw error;
+  }
+};
 export const logout = () => signOut(auth);
 
 async function testConnection() {

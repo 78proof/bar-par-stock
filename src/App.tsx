@@ -19,9 +19,6 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Start anonymous login in background
-    loginAnonymously().catch(console.error);
-    
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setReady(true);
