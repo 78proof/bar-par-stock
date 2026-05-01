@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
+  Settings as SettingsIcon,
   History, 
   LayoutDashboard, 
   LogOut, 
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { id: 'par-cutting', label: 'Par Cutting', icon: <Scissors size={20} /> },
   { id: 'recipes', label: 'Cocktail SOP', icon: <FileText size={20} /> },
   { id: 'history', label: 'History', icon: <History size={20} /> },
+  { id: 'settings', label: 'Settings', icon: <SettingsIcon size={20} /> },
 ];
 
 export const Layout: React.FC<{ 

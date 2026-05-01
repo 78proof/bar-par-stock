@@ -10,6 +10,7 @@ import { ParCutting } from './components/ParCutting';
 import { Shortage } from './components/Shortage';
 import { MinimumPar } from './components/MinimumPar';
 import { History } from './components/History';
+import { Settings } from './components/Settings';
 import { Toaster } from './components/ui/sonner';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -46,6 +47,7 @@ export default function App() {
             {activeTab === 'shortage' && <Shortage />}
             {activeTab === 'minimum-par' && <MinimumPar />}
             {activeTab === 'history' && <History />}
+            {activeTab === 'settings' && <Settings />}
           </motion.div>
         </AnimatePresence>
       </Layout>
