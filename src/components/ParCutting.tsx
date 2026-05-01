@@ -69,13 +69,15 @@ export const ParCutting: React.FC = () => {
     setCounts(initialCounts);
   }, [selectedDateStr, mode, logs]);
 
-  const getCategoryName = (id: string) => {
+  const getCategoryName = (id: string | undefined) => {
+    if (!id || id === 'uncategorized') return 'No Category';
     return categories.find(c => c.id === id)?.name || 'Other';
   };
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const itemCategoryName = categories.find(c => c.id === item.categoryId)?.name.toLowerCase() || '';
+      const cat = categories.find(c => c.id === item.categoryId);
+      const itemCategoryName = cat?.name.toLowerCase() || 'no category';
       const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || 
                             itemCategoryName.includes(search.toLowerCase());
       if (!matchesSearch) return false;

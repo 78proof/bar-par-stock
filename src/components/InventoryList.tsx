@@ -95,29 +95,55 @@ export const InventoryList: React.FC = () => {
   const filteredWine = getFilteredItems(wineItems);
 
   const handleSave = async () => {
-    if (!newItem.name || !newItem.categoryId) {
-      toast.error("Please fill in all fields.");
+    if (!newItem.name) {
+      toast.error("Item name is required.");
       return;
     }
-    if (editingItem) {
-      await updateItem(editingItem.id, newItem);
-      setEditingItem(null);
-    } else {
-      await addItem(newItem);
+    
+    // Default to 'uncategorized' if no category is selected
+    const itemData = {
+      ...newItem,
+      categoryId: newItem.categoryId || 'uncategorized'
+    };
+
+    try {
+      if (editingItem) {
+        await updateItem(editingItem.id, itemData);
+        setEditingItem(null);
+        toast.success("Item updated");
+      } else {
+        await addItem(itemData);
+        toast.success("Item added");
+      }
+      setAddOpen(false);
+      setNewItem({ name: '', categoryId: categories[0]?.id || '', unit: 'oz', parLevel: 4, currentStock: 0 });
+    } catch (error) {
+      console.error(error);
+      toast.error("Operation failed");
     }
-    setAddOpen(false);
-    setNewItem({ name: '', categoryId: categories[0]?.id || '', unit: 'oz', parLevel: 4, currentStock: 0 });
   };
 
   const handleAddCategory = async () => {
-    if (!newCategoryName) return;
-    await addCategory(newCategoryName);
-    setNewCategoryName('');
-    toast.success("Category added");
+    const trimmedName = newCategoryName.trim();
+    if (!trimmedName) {
+      toast.error("Category name cannot be empty");
+      return;
+    }
+    
+    try {
+      await addCategory(trimmedName);
+      setNewCategoryName('');
+      toast.success(`Category "${trimmedName}" added`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to add category");
+    }
   };
 
-  const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'Unknown';
-
+  const getCategoryName = (id: string | undefined) => {
+    if (!id || id === 'uncategorized') return 'No Category';
+    return categories.find(c => c.id === id)?.name || 'Unknown';
+  };
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -164,7 +190,7 @@ export const InventoryList: React.FC = () => {
                         className="w-full flex items-center justify-between px-3 h-10 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-600 transition-colors text-sm"
                       >
                         <span className={newItem.categoryId ? "text-slate-200" : "text-slate-500"}>
-                          {categories.find(c => c.id === newItem.categoryId)?.name || "Select Category"}
+                          {getCategoryName(newItem.categoryId)}
                         </span>
                         <Search size={14} className="text-slate-500" />
                       </button>
@@ -183,6 +209,19 @@ export const InventoryList: React.FC = () => {
                               />
                             </div>
                             <div className="overflow-y-auto p-1 custom-scrollbar">
+                              <button
+                                onClick={() => {
+                                  setNewItem({...newItem, categoryId: 'uncategorized'});
+                                  setCategorySelectorOpen(false);
+                                  setCategorySearch('');
+                                }}
+                                className={cn(
+                                  "w-full text-left px-3 py-2 rounded-lg text-xs transition-all",
+                                  newItem.categoryId === 'uncategorized' ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                                )}
+                              >
+                                (No Category)
+                              </button>
                               {filteredCategories.map(cat => (
                                 <button
                                   key={cat.id}
@@ -418,7 +457,10 @@ export const InventoryList: React.FC = () => {
 const InventoryCard: React.FC<{ item: Item; onEdit: () => void }> = ({ item, onEdit }) => {
   const { categories, deleteItem } = useInventory();
 
-  const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'Unknown';
+  const getCategoryName = (id: string | undefined) => {
+    if (!id || id === 'uncategorized') return 'No Category';
+    return categories.find(c => c.id === id)?.name || 'Unknown';
+  };
 
   return (
     <motion.div
