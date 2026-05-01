@@ -58,14 +58,30 @@ service cloud.firestore {
         && data.createdBy is string;
     }
 
-    function isValidLog(data) {
+    function isValidLog(data, isUpdate) {
       return data.keys().hasAll(['itemId', 'quantity', 'date', 'type', 'createdBy', 'createdAt'])
         && data.keys().size() >= 6
         && data.itemId is string && data.itemId.size() <= 128
         && data.quantity is number
         && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
         && data.type in ['count', 'usage', 'delivery', 'sales']
-        && (data.keys().hasAll(['notes']) ? data.notes is string && data.notes.size() <= 500 : true)
+        && (data.keys().hasAll(['notes']) ? data.notes is string && data.notes.size() <= 1000 : true)
+        && data.createdBy == request.auth.uid
+        && (isUpdate ? data.createdAt == existing().createdAt : data.createdAt == request.time);
+    }
+
+    function isValidReminder(data) {
+      return data.keys().hasAll(['text', 'completed', 'createdBy', 'createdAt'])
+        && data.text is string && data.text.size() <= 1000
+        && data.completed is bool
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['content', 'createdBy', 'createdAt'])
+        && data.content is string && data.content.size() <= 5000
+        && (data.keys().hasAll(['title']) ? data.title is string && data.title.size() <= 500 : true)
         && data.createdBy == request.auth.uid
         && data.createdAt == request.time;
     }
@@ -74,31 +90,44 @@ service cloud.firestore {
 
     match /categories/{categoryId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(categoryId) && isValidCategory(incoming()) && incoming().createdBy == request.auth.uid;
-      allow update: if isSignedIn() && isValidCategory(incoming()) && incoming().createdBy == existing().createdBy;
-      allow delete: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     match /items/{itemId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(itemId) && isValidItem(incoming()) && incoming().createdBy == request.auth.uid;
-      allow update: if isSignedIn() && isValidItem(incoming()) 
-                   && incoming().createdBy == existing().createdBy;
+      allow create: if isSignedIn() && isValidId(itemId);
+      allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     match /recipes/{recipeId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(recipeId) && isValidRecipe(incoming()) && incoming().createdBy == request.auth.uid;
-      allow update: if isSignedIn() && isValidRecipe(incoming());
+      allow create: if isSignedIn() && isValidId(recipeId);
+      allow update: if isSignedIn();
       allow delete: if isSignedIn();
     }
 
     match /inventoryLogs/{logId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming());
-      allow update: if isSignedIn() && isValidLog(incoming());
+      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming(), false);
+      allow update: if isSignedIn();
       allow delete: if isSignedIn();
+    }
+
+    match /reminders/{reminderId} {
+      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow create: if isSignedIn() && isValidReminder(incoming());
+      allow update: if isSignedIn() && resource.data.createdBy == request.auth.uid 
+        && incoming().diff(existing()).affectedKeys().hasAny(['text', 'completed']);
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /notes/{noteId} {
+      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow create: if isSignedIn() && isValidNote(incoming());
+      allow update: if isSignedIn() && resource.data.createdBy == request.auth.uid 
+        && incoming().diff(existing()).affectedKeys().hasAny(['title', 'content']);
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
     }
   }
 }

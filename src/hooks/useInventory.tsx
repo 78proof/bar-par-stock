@@ -10,7 +10,8 @@ import {
   deleteDoc, 
   serverTimestamp,
   where,
-  Timestamp
+  Timestamp,
+  increment
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
@@ -95,34 +96,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         currentStock: item.currentStock || 0,
         parLevel: item.parLevel || 0,
         isGlass: item.isGlass || false,
-        mlSize: item.mlSize || 750, // Default bottle size
+        mlSize: item.mlSize || 750, 
         createdBy: auth.currentUser?.uid,
         updatedAt: serverTimestamp(),
       });
-
-      // Auto-pairing logic: If we add a glass, ensure a bottle exists. If we add a bottle, ensure a glass exists.
-      const pairSuffix = item.isGlass ? "" : " (Glass)";
-      const oppositeName = item.isGlass 
-        ? (cleanName.toLowerCase().endsWith(" (glass)") ? cleanName.slice(0, -8) : cleanName)
-        : `${cleanName} (Glass)`;
-      
-      const existingPair = items.find(i => i.name.toLowerCase() === oppositeName.toLowerCase());
-      
-      if (!existingPair && !cleanName.toLowerCase().includes("mix") && !cleanName.toLowerCase().includes("juice")) {
-        // Create the missing pair
-        await addDoc(collection(db, 'items'), {
-          name: oppositeName,
-          categoryId: item.categoryId,
-          unit: item.isGlass ? 'ml' : 'oz',
-          parLevel: 0,
-          currentStock: 0,
-          isGlass: !item.isGlass,
-          mlSize: item.mlSize || 750,
-          targetBottleId: item.isGlass ? "" : docRef.id,
-          createdBy: auth.currentUser?.uid,
-          updatedAt: serverTimestamp(),
-        });
-      }
 
       return docRef.id;
     } catch (error) {
@@ -238,69 +215,87 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ...log,
         createdBy: auth.currentUser?.uid,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
       const logRef = await addDoc(collection(db, 'inventoryLogs'), logData);
       
       const item = items.find(i => i.id === log.itemId);
       if (item) {
-        let newStock = item.currentStock || 0;
-        // Logic for stock adjustment
-        if (log.type === 'count') newStock = log.quantity;
-        else if (log.type === 'sales') {
-          newStock = log.quantity;
+        let stockChange = 0;
+        if (log.type === 'count') {
+          // For 'count', we still have to set the absolute value
+          await updateDoc(doc(db, 'items', log.itemId), { 
+            currentStock: log.quantity, 
+            updatedAt: serverTimestamp() 
+          });
+        } else {
+          if (log.type === 'delivery') stockChange = log.quantity;
+          else if (log.type === 'usage' || log.type === 'sales') stockChange = -log.quantity;
+          
+          if (stockChange !== 0) {
+            await updateDoc(doc(db, 'items', log.itemId), { 
+              currentStock: increment(stockChange), 
+              updatedAt: serverTimestamp() 
+            });
+          }
         }
-        else if (log.type === 'delivery') newStock += log.quantity;
-        else if (log.type === 'usage') newStock -= log.quantity;
-        
-        await updateDoc(doc(db, 'items', log.itemId), { 
-          currentStock: newStock, 
-          updatedAt: serverTimestamp() 
-        });
 
-        // Automatic Recipe & Bottle Deduction
-        if (log.type === 'sales' && log.quantity > 0) {
-          // 1. Check for specific recipe deductions
-          const recipe = recipes.find(r => r.name.toLowerCase() === item.name.toLowerCase());
-          if (recipe) {
-            for (const ing of recipe.ingredients) {
-              const usageAmount = ing.amount * log.quantity;
-              await addLog({
-                itemId: ing.itemId,
-                quantity: usageAmount,
-                type: 'usage',
-                date: log.date,
-                notes: `Deduction: ${item.name} x${log.quantity}`
-              });
+        // Automatic Recipe & Bottle Deduction (Interconnectivity)
+        if ((log.type === 'sales' || (log.type === 'usage' && log.notes?.includes('Deduction'))) && log.quantity > 0) {
+          // 1. Recipe Ingredient Deductions
+          if (!log.notes?.includes('Recursive')) {
+            const recipe = recipes.find(r => r.name.toLowerCase() === item.name.toLowerCase());
+            if (recipe) {
+              for (const ing of recipe.ingredients) {
+                const targetItem = items.find(i => i.id === ing.itemId);
+                let quantityToDeduct = ing.amount * log.quantity;
+
+                if (targetItem && (targetItem.unit === 'bottle' || targetItem.unit === 'btl')) {
+                  const conversionFactor = 29.57; // 1 oz = 29.57 ml
+                  const mlUsage = ing.amount * conversionFactor * log.quantity;
+                  const bottleSize = targetItem.mlSize || 750;
+                  quantityToDeduct = mlUsage / bottleSize;
+                }
+
+                await addLog({
+                  itemId: ing.itemId,
+                  quantity: parseFloat(quantityToDeduct.toFixed(4)),
+                  type: 'usage',
+                  date: log.date,
+                  notes: `Recursive Deduction: ${recipe.name} [Parent: ${logRef.id}]`
+                });
+              }
             }
           }
 
-          // 2. Cross-unit Bottle Deduction (oz sold -> ml bottle)
-          // If this is a glass item, try to find the bottle item
-          const parentName = item.name.toLowerCase().endsWith(" (glass)") 
-            ? item.name.slice(0, -8) 
-            : item.name;
-          
-          const bottleItem = items.find(i => 
-            !i.isGlass && 
-            (i.id === item.targetBottleId || i.name.toLowerCase() === parentName.toLowerCase())
-          );
+          // 2. Glass to Bottle Conversion (oz -> ml)
+          if (item.isGlass && !log.notes?.includes('Bottle Deduction')) {
+            const bottleItem = items.find(i => 
+              (!i.isGlass && i.id === item.targetBottleId) || 
+              (!i.isGlass && i.name.toLowerCase() === item.name.toLowerCase().replace(' (glass)', '').trim())
+            );
 
-          if (bottleItem) {
-            // Conversion: 1 oz of glass sales typically equals some amount of bottle usage
-            // 2 oz per glass is standard, but since 'quantity' in sales log is glasses sold, 
-            // we assume the sale is 'quantity' units of 'item.unit'.
-            // If item.unit is 'oz', a sale of 2 units means 2 oz.
-            
-            const ozSold = log.quantity; 
-            const mlUsage = ozSold * 29.57; // 1 oz = 29.57 ml
-            
-            await addLog({
-              itemId: bottleItem.id,
-              quantity: parseFloat(mlUsage.toFixed(2)),
-              type: 'usage',
-              date: log.date,
-              notes: `Auto Deduction (Glass Sale): ${item.name}`
-            });
+            if (bottleItem) {
+              const conversionFactor = 29.57; // 1 oz = 29.57 ml
+              const mlUsage = log.quantity * conversionFactor;
+              
+              // If the bottle item is tracked in ml, we deduct ml.
+              // If it's tracked in bottles, we deduct (ml / size).
+              let quantityToDeduct = mlUsage;
+              if (bottleItem.unit === 'bottle' || bottleItem.unit === 'btl') {
+                const bottleSize = bottleItem.mlSize || 750;
+                quantityToDeduct = mlUsage / bottleSize;
+              }
+
+              await addLog({
+                itemId: bottleItem.id,
+                quantity: parseFloat(quantityToDeduct.toFixed(4)),
+                type: 'usage',
+                date: log.date,
+                notes: `Bottle Deduction (from Sale: ${item.name}) [Parent: ${logRef.id}]`
+              });
+            }
+
           }
         }
       }
@@ -312,10 +307,57 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateLog = async (id: string, data: Partial<InventoryLog>) => {
     try {
-      await updateDoc(doc(db, 'inventoryLogs', id), {
-        ...data,
-        updatedAt: serverTimestamp(),
-      });
+      const existingLog = logs.find(l => l.id === id);
+      if (!existingLog) return;
+
+      const item = items.find(i => i.id === existingLog.itemId);
+      if (item && data.quantity !== undefined && data.quantity !== existingLog.quantity) {
+        const diff = data.quantity - existingLog.quantity;
+        
+        if (existingLog.type === 'count') {
+          await updateDoc(doc(db, 'items', item.id), {
+            currentStock: data.quantity,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          let stockAdjustment = 0;
+          if (existingLog.type === 'delivery') stockAdjustment = diff;
+          else if (existingLog.type === 'usage' || existingLog.type === 'sales') stockAdjustment = -diff;
+
+          if (stockAdjustment !== 0) {
+            await updateDoc(doc(db, 'items', item.id), {
+              currentStock: increment(stockAdjustment),
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+
+        // RECURSIVE UPDATE: If this was a sales log, update all related deductions (ingredients, bottles)
+        if (existingLog.type === 'sales' && !existingLog.notes?.includes('Recursive')) {
+          // Identify children using the unique Parent tag
+          const parentTag = `[Parent: ${id}]`;
+          const childLogs = logs.filter(l => l.notes?.includes(parentTag));
+          
+          for (const child of childLogs) {
+            // Calculate ratio based on originally recorded values
+            // Use 1 as fallback to prevent NaN if original quantity was 0
+            const originalParentQty = existingLog.quantity || 1;
+            const ratio = child.quantity / originalParentQty;
+            const newChildQty = parseFloat((data.quantity * ratio).toFixed(2));
+            
+            // We use updateLog recursively - it will handle stock adjustments for the children too!
+            await updateLog(child.id, { quantity: newChildQty });
+          }
+        }
+      }
+
+      const updateData: any = {
+        updatedAt: serverTimestamp()
+      };
+      if (data.quantity !== undefined) updateData.quantity = data.quantity;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+
+      await updateDoc(doc(db, 'inventoryLogs', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `inventoryLogs/${id}`);
     }
@@ -323,22 +365,40 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deleteLog = async (id: string) => {
     try {
-      const log = logs.find(l => l.id === id);
-      if (log) {
-        const item = items.find(i => i.id === log.itemId);
-        if (item) {
-          let newStock = item.currentStock || 0;
-          if (log.type === 'delivery') newStock -= log.quantity;
-          else if (log.type === 'usage') newStock += log.quantity;
-          // Note: count/sales deletions are tricky to auto-reverse without historical snapshots
-          
-          await updateDoc(doc(db, 'items', log.itemId), { 
-            currentStock: Math.max(0, newStock), 
-            updatedAt: serverTimestamp() 
-          });
-        }
-        await deleteDoc(doc(db, 'inventoryLogs', id));
+      // Find the log in the latest state
+      const logToDelete = logs.find(l => l.id === id);
+      if (!logToDelete) return;
+
+      // 1. RECURSIVE DELETE: First find and delete children (ingredients/bottle deductions)
+      const parentTag = `[Parent: ${id}]`;
+      const childLogs = logs.filter(l => l.notes?.includes(parentTag));
+      
+      for (const child of childLogs) {
+        await deleteLog(child.id);
       }
+
+      // 2. Revert Stock for the current log
+      const item = items.find(i => i.id === logToDelete.itemId);
+      if (item) {
+        if (logToDelete.type === 'count') {
+          // Reverting a 'count' is complex, no action for now
+        } else {
+          let revertAdjustment = 0;
+          if (logToDelete.type === 'delivery') revertAdjustment = -logToDelete.quantity;
+          else if (logToDelete.type === 'usage' || logToDelete.type === 'sales') revertAdjustment = logToDelete.quantity;
+          
+          if (revertAdjustment !== 0) {
+            await updateDoc(doc(db, 'items', item.id), { 
+              currentStock: increment(revertAdjustment), 
+              updatedAt: serverTimestamp() 
+            });
+          }
+        }
+      }
+
+
+      // 3. Delete the log itself
+      await deleteDoc(doc(db, 'inventoryLogs', id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `inventoryLogs/${id}`);
     }

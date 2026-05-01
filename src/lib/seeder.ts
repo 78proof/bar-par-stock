@@ -2,36 +2,12 @@ import { db } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
 
 const DISTRIBUTOR_DATA = {
-  DIAGEO: [
-    'Johnnie Walker Black Label', 'Johnnie Walker Blue Label', 'Johnnie Walker Gold Label', 
-    'Talisker 10Y', 'Singleton 12Y', 'Singleton 15Y', 'Singleton 18Y', 'Lagavulin 16Y',
-    'Tanqueray Ten', 'Tanqueray London Dry', 'Ketel One Vodka', 'Ciroc Vodka', 'Don Julio Blanco',
-    'Don Julio Reposado', 'Don Julio 1942', 'Bulleit Bourbon', 'Bulleit Rye', 'Zacapa 23', 'Zacapa XO'
-  ],
-  BACARDI: [
-    'Bacardi Carta Blanca', 'Bacardi Diez', 'Bacardi Ocho', 'Grey Goose Vodka', 
-    'Bombay Sapphire', 'Patron Silver', 'Patron Reposado', 'Patron Anejo', 'Dewars 12Y', 
-    'Dewars 15Y', 'Dewars 18Y', 'Aberfeldy 12Y', 'Santa Teresa 1796'
-  ],
-  PERNOD_RICARD: [
-    'Chivas Regal 12Y', 'Chivas Regal 18Y', 'Chivas Royal Salute 21Y', 'The Glenlivet 12Y',
-    'The Glenlivet 15Y', 'The Glenlivet 18Y', 'Absolut Vodka', 'Beefeater Gin', 'Jameson Irish Whiskey',
-    'Martell VSOP', 'Martell Cordon Bleu', 'Monkey 47 Gin', 'Havana Club 7Y', 'Malibu'
-  ],
-  ALCHEMY: [
-    'Ardbeg 10Y', 'Ardbeg Uigeadail', 'Glenmorangie 10Y', 'Glenmorangie Lasanta', 
-    'Hennessy VSOP', 'Hennessy XO', 'Belvedere Vodka', 'Volcan Tequila Blanco', 
-    'Moet & Chandon Brut', 'Veuve Clicquot Yellow Label'
-  ],
-  COCKTAILS: [
-    'Old Fashioned', 'Negroni', 'Margarita', 'Espresso Martini', 'Whisky Sour', 
-    'Moscow Mule', 'Pina Colada', 'Mai Tai', 'Cosmopolitan', 'Manhattan', 
-    'Aperol Spritz', 'Hugo Spritz', 'Ardbeg Sour', 'Bulleit Old Fashioned'
-  ],
-  MOCKTAILS: [
-    'Virgin Mojito', 'Virgin Pina', 'Chameleon', 'Euphoria', 'Tease-Apples', 
-    'Berry Mule', 'Zest', 'Blossom', 'Oaky Lane'
-  ]
+  DIAGEO: [],
+  BACARDI: [],
+  PERNOD_RICARD: [],
+  ALCHEMY: [],
+  COCKTAILS: [],
+  MOCKTAILS: []
 };
 
 export const seedDatabase = async (userId: string) => {
@@ -123,21 +99,43 @@ export const seedDatabase = async (userId: string) => {
   const existingRecipesQuery = await getDocs(collection(db, 'recipes'));
   const existingRecipeNames = new Set(existingRecipesQuery.docs.map(d => d.data().name.toLowerCase()));
 
-  const addRecipeShell = async (name: string, categoryId: string) => {
+  // Get some item IDs for ingredients
+  const spiritsQuery = await getDocs(query(collection(db, 'items'), where('isGlass', '==', false)));
+  const itemMap = new Map(spiritsQuery.docs.map(d => [d.data().name.toLowerCase(), d.id]));
+
+  const addRecipeShell = async (name: string, categoryId: string, ingredients: any[] = []) => {
     if (existingRecipeNames.has(name.toLowerCase())) return;
+    
+    // Resolve ingredient names to IDs
+    const resolvedIngredients = ingredients.map(ing => ({
+      itemId: itemMap.get(ing.name.toLowerCase()) || '',
+      amount: ing.amount
+    })).filter(ing => ing.itemId !== '');
+
     await addDoc(collection(db, 'recipes'), {
       name,
       categoryId,
-      ingredients: [],
+      ingredients: resolvedIngredients,
       createdBy: userId,
       updatedAt: serverTimestamp()
     });
     existingRecipeNames.add(name.toLowerCase());
   };
 
+  const cocktailRecipes = [
+    { name: 'Old Fashioned', ingredients: [{ name: 'Don Julio Reposado', amount: 2 }] },
+    { name: 'Negroni', ingredients: [{ name: 'Tanqueray London Dry', amount: 1 }] },
+    { name: 'Margarita', ingredients: [{ name: 'Don Julio Blanco', amount: 2 }] },
+    { name: 'Espresso Martini', ingredients: [{ name: 'Ketel One Vodka', amount: 1.5 }] },
+    { name: 'Whisky Sour', ingredients: [{ name: 'Bulleit Bourbon', amount: 2 }] },
+    { name: 'Moscow Mule', ingredients: [{ name: 'Ketel One Vodka', amount: 1.5 }] },
+    { name: 'Pina Colada', ingredients: [{ name: 'Bacardi Carta Blanca', amount: 2 }] },
+  ];
+
   for (const name of DISTRIBUTOR_DATA.COCKTAILS) {
     await addItem(name, COCKTAIL_CAT, 'oz', true);
-    await addRecipeShell(name, COCKTAIL_CAT);
+    const complex = cocktailRecipes.find(r => r.name === name);
+    await addRecipeShell(name, COCKTAIL_CAT, complex ? complex.ingredients : []);
   }
   for (const name of DISTRIBUTOR_DATA.MOCKTAILS) {
     await addItem(name, MOCKTAIL_CAT, 'oz', true);

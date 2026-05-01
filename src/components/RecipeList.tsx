@@ -74,10 +74,9 @@ export const RecipeList: React.FC = () => {
     const nextIngredients = [...newRecipe.ingredients];
     nextIngredients[index] = { ...nextIngredients[index], [key]: value };
     
-    // If itemId changed, auto-set unit from item
+    // If itemId changed, default to oz for recipes unless user changes it
     if (key === 'itemId') {
-      const item = items.find(i => i.id === value);
-      if (item) nextIngredients[index].unit = item.unit;
+      nextIngredients[index].unit = 'oz';
     }
     
     setNewRecipe({ ...newRecipe, ingredients: nextIngredients });
@@ -129,11 +128,9 @@ export const RecipeList: React.FC = () => {
             setEditingRecipe(null);
           }
         }}>
-          <DialogTrigger asChild>
-            <Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 gap-2 h-11">
-              <PlusCircle size={18} />
-              New Recipe
-            </Button>
+          <DialogTrigger render={<Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 gap-2 h-11" onClick={() => setAddOpen(true)} />}>
+            <PlusCircle size={18} />
+            New Recipe
           </DialogTrigger>
           <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto bg-card border-border text-foreground">
             <DialogHeader>
@@ -237,7 +234,16 @@ export const RecipeList: React.FC = () => {
                           }}
                           className="bg-transparent border-none text-right font-mono text-blue-400 h-8 w-14 p-0 focus-visible:ring-0"
                         />
-                        <span className="text-[10px] font-bold text-slate-500 uppercase">{ing.unit || 'oz'}</span>
+                        <select 
+                          value={ing.unit} 
+                          onChange={e => handleIngredientChange(idx, 'unit', e.target.value)}
+                          className="bg-transparent border-none text-[10px] font-bold text-slate-500 uppercase focus:ring-0 cursor-pointer"
+                        >
+                          <option value="oz">oz</option>
+                          <option value="bottle">btl</option>
+                          <option value="ml">ml</option>
+                          <option value="shot">shot</option>
+                        </select>
                       </div>
                       <Button 
                         variant="ghost" 
@@ -391,6 +397,8 @@ const IngredientSearch = ({ items, categories, value, onSelect }: { items: Item[
     categories.find(c => c.id === i.categoryId)?.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const uncategorizedItems = filteredItems.filter(i => !categories.find(c => c.id === i.categoryId));
+
   return (
     <div className="relative">
       <button 
@@ -438,13 +446,53 @@ const IngredientSearch = ({ items, categories, value, onSelect }: { items: Item[
                           value === item.id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
                         )}
                       >
-                        <span className="font-medium">{item.name}</span>
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium">{item.name}</span>
+                          {!item.isGlass && item.mlSize && (
+                            <span className="text-[8px] text-slate-600 font-bold uppercase tracking-tighter">
+                              {item.mlSize}ml Bottle
+                            </span>
+                          )}
+                        </div>
                         {item.isGlass && <GlassWater size={12} className="text-blue-400 group-hover:text-blue-300" />}
                       </button>
                     ))}
                   </div>
                 );
               })}
+
+              {uncategorizedItems.length > 0 && (
+                <div className="space-y-1">
+                  <div className="px-3 py-1.5 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] bg-slate-800/10 rounded-lg">
+                    Other Components
+                  </div>
+                  {uncategorizedItems.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onSelect(item.id);
+                        setOpen(false);
+                        setSearch('');
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-xl text-sm transition-all flex items-center justify-between group",
+                        value === item.id ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      )}
+                    >
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{item.name}</span>
+                        {!item.isGlass && item.mlSize && (
+                          <span className="text-[8px] text-slate-600 font-bold uppercase tracking-tighter">
+                            {item.mlSize}ml Bottle
+                          </span>
+                        )}
+                      </div>
+                      {item.isGlass && <GlassWater size={12} className="text-blue-400 group-hover:text-blue-300" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {filteredItems.length === 0 && (
                 <div className="py-8 text-center text-slate-500 text-xs italic">
                   No components found

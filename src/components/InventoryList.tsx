@@ -163,10 +163,10 @@ export const InventoryList: React.FC = () => {
               setEditingItem(null);
             }
           }}>
-            <DialogTrigger render={<Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20 gap-2 h-11" onClick={() => setAddOpen(true)} />}>
-              <Plus size={18} />
-              Add Item
-            </DialogTrigger>
+          <DialogTrigger render={<Button className="rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 gap-2 h-11" onClick={() => setAddOpen(true)} />}>
+            <Plus size={18} />
+            Add Item
+          </DialogTrigger>
             <DialogContent className="sm:max-w-[425px] bg-slate-900 border-slate-800 text-slate-200">
               <DialogHeader>
                 <DialogTitle>{editingItem ? 'Edit Item' : 'Add New Item'}</DialogTitle>
@@ -457,10 +457,12 @@ const InventoryCard: React.FC<{ item: Item; onEdit: () => void }> = ({ item, onE
         <CardHeader className="flex flex-row items-center justify-between pb-6 space-y-0 p-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center text-xl transition-colors group-hover:bg-slate-700">
-              {categories.find(c => c.id === item.categoryId)?.type === 'wine' ? (
+              {item.isGlass ? (
+                <GlassWater size={20} className="text-blue-400" />
+              ) : categories.find(c => c.id === item.categoryId)?.type === 'wine' ? (
                 <Wine size={20} className="text-red-400" />
               ) : (
-                <GlassWater size={20} className="text-blue-400" />
+                <FlaskConical size={20} className="text-amber-400" />
               )}
             </div>
             <div>
@@ -488,16 +490,20 @@ const InventoryCard: React.FC<{ item: Item; onEdit: () => void }> = ({ item, onE
             </div>
             {!item.isGlass && (
               <div className="text-right space-y-1">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base Par</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Bottle Size</p>
                 <div className="flex items-center gap-2 justify-end">
-                  <p className="text-sm font-mono font-bold text-slate-300">{item.parLevel} <span className="text-xs text-slate-600">{item.unit}</span></p>
+                  <p className="text-sm font-mono font-bold text-slate-300">{item.mlSize || 750} <span className="text-xs text-slate-600">ml</span></p>
                 </div>
               </div>
             )}
           </div>
           {!item.isGlass && (
             <>
-              <div className="mt-6 h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div className="mt-4 flex items-center justify-between pb-2 border-b border-slate-800/50">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Base Par</p>
+                <p className="text-xs font-mono font-bold text-slate-300">{item.parLevel} <span className="text-[10px] text-slate-600 uppercase">{item.unit}</span></p>
+              </div>
+              <div className="mt-4 h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(((item.currentStock || 0) / (item.parLevel || 1)) * 100, 100)}%` }}

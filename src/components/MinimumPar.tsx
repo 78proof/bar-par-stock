@@ -13,8 +13,7 @@ export const MinimumPar: React.FC = () => {
 
   // Filter out Glass items as per request: "for glass we dont need minimum par"
   const nonGlassItems = items.filter(i => {
-    const isAlcohol = i.name.toLowerCase().includes('(glass)') || i.name.toLowerCase().includes('(bottle)');
-    // If it's a glass item, skip it
+    // We only want physical bottles for par settings
     return !i.isGlass;
   });
 

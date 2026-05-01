@@ -49,6 +49,7 @@ export const History: React.FC = () => {
   const [date, setDate] = useState<Date>(new Date());
   const [activeSubTab, setActiveSubTab] = useState<'sales' | 'usage' | 'delivery'>('usage');
   const [editingLog, setEditingLog] = useState<InventoryLog | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const selectedDateStr = format(date, 'yyyy-MM-dd');
 
@@ -66,10 +67,11 @@ export const History: React.FC = () => {
     return matchesDate && matchesSubTab && matchesSearch;
   });
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this log?")) return;
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteLog(id);
+      await deleteLog(deleteConfirmId);
+      setDeleteConfirmId(null);
       toast.success("Log entry deleted successfully");
     } catch (e) {
       console.error(e);
@@ -100,7 +102,7 @@ export const History: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <Popover>
-            <PopoverTrigger>
+            <PopoverTrigger render={
               <Button 
                 variant="outline" 
                 className={cn(
@@ -111,7 +113,7 @@ export const History: React.FC = () => {
                 <CalendarIcon size={18} className="text-blue-600 dark:text-blue-400" />
                 {date ? format(date, "EEEE, MMMM do") : <span>Select Date</span>}
               </Button>
-            </PopoverTrigger>
+            } />
             <PopoverContent className="w-auto p-0 bg-card border-border" align="end">
               <Calendar
                 mode="single"
@@ -235,7 +237,7 @@ export const History: React.FC = () => {
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all rounded-lg" onClick={() => setEditingLog(log)}>
                           <Edit3 size={14} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all rounded-lg" onClick={() => handleDelete(log.id)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all rounded-lg" onClick={() => setDeleteConfirmId(log.id)}>
                           <Trash2 size={14} />
                         </Button>
                       </div>
@@ -286,6 +288,21 @@ export const History: React.FC = () => {
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="ghost" onClick={() => setEditingLog(null)} className="h-12 w-full sm:flex-1 rounded-2xl font-bold text-muted-foreground hover:bg-secondary">Cancel</Button>
             <Button onClick={handleUpdate} className="h-12 w-full sm:flex-[2] bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black shadow-lg shadow-blue-600/20">Update Record</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="bg-card border-border text-foreground rounded-[32px] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight">Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <p className="text-muted-foreground font-medium">Are you sure you want to delete this record? This will also revert the stock level of the item.</p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="ghost" onClick={() => setDeleteConfirmId(null)} className="h-12 w-full sm:flex-1 rounded-2xl font-bold text-muted-foreground hover:bg-secondary">Cancel</Button>
+            <Button onClick={handleDelete} className="h-12 w-full sm:flex-[2] bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black shadow-lg shadow-red-600/20">Delete Forever</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
