@@ -73,13 +73,26 @@ export const useDashboardData = () => {
 
   const addReminder = async (text: string) => {
     try {
-      const uid = auth.currentUser?.uid || 'guest-user';
-      await addDoc(collection(db, 'reminders'), {
+      if (!db) return;
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+
+      const payload: any = {
         text: text || '',
         completed: false,
-        createdBy: String(uid),
+        createdBy: uid,
         createdAt: serverTimestamp(),
-      });
+      };
+      
+      // Strict sanitization: Firestore hates undefined
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      
+      console.log("[DEBUG] addReminder payload:", payload);
+      await addDoc(collection(db, 'reminders'), payload);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'reminders');
     }
@@ -103,13 +116,26 @@ export const useDashboardData = () => {
 
   const addNote = async (content: string, title?: string) => {
     try {
-      const uid = auth.currentUser?.uid || 'guest-user';
-      await addDoc(collection(db, 'notes'), {
+      if (!db) return;
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+
+      const payload: any = {
         content: content || '',
         title: title || '',
-        createdBy: String(uid),
+        createdBy: uid,
         createdAt: serverTimestamp(),
-      });
+      };
+      
+      // Strict sanitization: Firestore hates undefined
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+      console.log("[DEBUG] addNote payload:", payload);
+      await addDoc(collection(db, 'notes'), payload);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'notes');
     }

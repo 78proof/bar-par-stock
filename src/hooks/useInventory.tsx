@@ -101,18 +101,28 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const cleanName = capitalize(item.name);
       
-      const uid = auth.currentUser?.uid || 'guest-user';
-      const docRef = await addDoc(collection(db, 'items'), {
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+
+      const payload: any = {
         ...item,
         name: cleanName,
         currentStock: item.currentStock || 0,
         parLevel: item.parLevel || 0,
         isGlass: item.isGlass || false,
         mlSize: item.mlSize || 750, 
-        createdBy: String(uid),
+        createdBy: uid,
         updatedAt: serverTimestamp(),
-      });
+      };
+      
+      // Strict sanitization: Firestore hates undefined
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
 
+      const docRef = await addDoc(collection(db, 'items'), payload);
       return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'items');
@@ -142,13 +152,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addCategory = async (name: string, type?: Category['type']) => {
     if (!db) return "";
     try {
-      const uid = auth.currentUser?.uid || 'guest-user';
-      const docRef = await addDoc(collection(db, 'categories'), {
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+      
+      const payload: any = {
         name,
         type: type || 'other',
-        createdBy: String(uid),
+        createdBy: uid,
         updatedAt: serverTimestamp(),
-      });
+      };
+      // Strict sanitization
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+      const docRef = await addDoc(collection(db, 'categories'), payload);
       return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'categories');
@@ -179,12 +199,22 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'updatedAt' | 'createdBy'>) => {
     if (!db) return "";
     try {
-      const uid = auth.currentUser?.uid || 'guest-user';
-      const docRef = await addDoc(collection(db, 'recipes'), {
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+
+      const payload: any = {
         ...recipe,
-        createdBy: String(uid),
+        createdBy: uid,
         updatedAt: serverTimestamp(),
-      });
+      };
+      // Strict sanitization
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+      const docRef = await addDoc(collection(db, 'recipes'), payload);
 
       // Automatically create a Glass item for this recipe if it doesn't exist
       const existingItem = items.find(i => i.name.toLowerCase() === recipe.name.toLowerCase());
@@ -228,14 +258,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addLog = async (log: Omit<InventoryLog, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!db) return;
     try {
-      const uid = auth.currentUser?.uid || 'guest-user';
-      const logData = {
+      let uid = 'guest-user';
+      try {
+        if (auth?.currentUser?.uid) {
+          uid = auth.currentUser.uid;
+        }
+      } catch (e) { /* ignore */ }
+
+      const payload: any = {
         ...log,
-        createdBy: String(uid),
+        createdBy: uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      const logRef = await addDoc(collection(db, 'inventoryLogs'), logData);
+      // Strict sanitization
+      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+
+      const logRef = await addDoc(collection(db, 'inventoryLogs'), payload);
       
       const item = items.find(i => i.id === log.itemId);
       if (item) {
