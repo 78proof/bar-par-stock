@@ -1,147 +1,101 @@
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  deleteDoc, 
-  serverTimestamp,
-  where
-} from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '../lib/firebase';
-import { OperationType } from '../types';
-import { handleFirestoreError, sanitizeData, getCurrentUserId } from '../lib/firestoreUtils';
-
-export interface Reminder {
-  id: string;
-  text: string;
-  completed: boolean;
-  createdBy: string;
-  createdAt: any;
-}
-
-export interface Note {
-  id: string;
-  title?: string;
-  content: string;
-  createdBy: string;
-  createdAt: any;
-}
+import { Reminder, Note } from '../types/index';
 
 export const useDashboardData = () => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchData = async () => {
+    try {
+      const [remRes, notesRes] = await Promise.all([
+        fetch('/api/reminders'),
+        fetch('/api/notes')
+      ]);
+      const remData = await remRes.json();
+      const notesData = await notesRes.json();
+      setReminders(remData);
+      setNotes(notesData);
+    } catch (e) {
+      console.error("Failed to fetch dashboard data:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (!db) return;
-
-    const setupListeners = () => {
-      const remindersQuery = query(
-        collection(db, 'reminders'), 
-        orderBy('createdAt', 'desc')
-      );
-      const unsubscribeReminders = onSnapshot(remindersQuery, (snapshot) => {
-        setReminders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder)));
-      }, (error) => console.error("Firestore Reminders sync error:", error));
-
-      const notesQuery = query(
-        collection(db, 'notes'), 
-        orderBy('createdAt', 'desc')
-      );
-      const unsubscribeNotes = onSnapshot(notesQuery, (snapshot) => {
-        setNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note)));
-        setLoading(false);
-      }, (error) => console.error("Firestore Notes sync error:", error));
-
-      return () => {
-        unsubscribeReminders();
-        unsubscribeNotes();
-      };
-    };
-
-    const stopListeners = setupListeners();
-
-    return () => {
-      if (stopListeners) stopListeners();
-    };
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const addReminder = async (text: string) => {
     try {
-      if (!db) return;
-      const uid = getCurrentUserId();
-
-      const payload = sanitizeData({
-        text: text || '',
-        completed: false,
-        createdBy: uid,
-        createdAt: serverTimestamp(),
+      const res = await fetch('/api/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, completed: false })
       });
-      
-      console.log("[DEBUG] addReminder payload:", payload);
-      await addDoc(collection(db, 'reminders'), payload);
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'reminders');
+      console.error("Add reminder error:", error);
     }
   };
 
   const toggleReminder = async (id: string, completed: boolean) => {
     try {
-      await updateDoc(doc(db, 'reminders', id), { completed });
+      const res = await fetch(`/api/reminders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed })
+      });
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `reminders/${id}`);
+      console.error("Toggle reminder error:", error);
     }
   };
 
   const deleteReminder = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'reminders', id));
+      const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `reminders/${id}`);
+      console.error("Delete reminder error:", error);
     }
   };
 
   const addNote = async (content: string, title?: string) => {
     try {
-      if (!db) return;
-      const uid = getCurrentUserId();
-
-      const payload = sanitizeData({
-        content: content || '',
-        title: title || '',
-        createdBy: uid,
-        createdAt: serverTimestamp(),
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, title: title || '' })
       });
-      
-      console.log("[DEBUG] addNote payload:", payload);
-      await addDoc(collection(db, 'notes'), payload);
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'notes');
+      console.error("Add note error:", error);
     }
   };
 
   const updateNote = async (id: string, content: string, title?: string) => {
     try {
-      await updateDoc(doc(db, 'notes', id), { 
-        content, 
-        title: title || '',
-        updatedAt: serverTimestamp() 
+      const res = await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, title: title || '' })
       });
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `notes/${id}`);
+      console.error("Update note error:", error);
     }
   };
 
   const deleteNote = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'notes', id));
+      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchData();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `notes/${id}`);
+      console.error("Delete note error:", error);
     }
   };
 

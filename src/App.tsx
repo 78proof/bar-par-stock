@@ -20,14 +20,8 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!auth) {
-      setReady(true);
-      return;
-    }
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setReady(true);
-    });
+    // For now, we allow the app to work without strict auth checks
+    setReady(true);
   }, []);
 
   // Show a minor loading blur but allow app to render if possibly ready
