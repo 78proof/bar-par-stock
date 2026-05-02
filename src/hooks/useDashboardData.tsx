@@ -14,7 +14,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import { OperationType } from '../types';
-import { handleFirestoreError } from '../lib/firestoreUtils';
+import { handleFirestoreError, sanitizeData, getCurrentUserId } from '../lib/firestoreUtils';
 
 export interface Reminder {
   id: string;
@@ -74,22 +74,14 @@ export const useDashboardData = () => {
   const addReminder = async (text: string) => {
     try {
       if (!db) return;
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
 
-      const payload: any = {
+      const payload = sanitizeData({
         text: text || '',
         completed: false,
         createdBy: uid,
         createdAt: serverTimestamp(),
-      };
-      
-      // Strict sanitization: Firestore hates undefined
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      });
       
       console.log("[DEBUG] addReminder payload:", payload);
       await addDoc(collection(db, 'reminders'), payload);
@@ -117,23 +109,15 @@ export const useDashboardData = () => {
   const addNote = async (content: string, title?: string) => {
     try {
       if (!db) return;
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
 
-      const payload: any = {
+      const payload = sanitizeData({
         content: content || '',
         title: title || '',
         createdBy: uid,
         createdAt: serverTimestamp(),
-      };
+      });
       
-      // Strict sanitization: Firestore hates undefined
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
-
       console.log("[DEBUG] addNote payload:", payload);
       await addDoc(collection(db, 'notes'), payload);
     } catch (error) {

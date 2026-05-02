@@ -16,7 +16,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../lib/firebase';
 import { Item, Recipe, InventoryLog, OperationType, Category } from '../types';
-import { handleFirestoreError } from '../lib/firestoreUtils';
+import { handleFirestoreError, sanitizeData, getCurrentUserId } from '../lib/firestoreUtils';
 
 interface InventoryContextType {
   items: Item[];
@@ -101,14 +101,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const cleanName = capitalize(item.name);
       
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
 
-      const payload: any = {
+      const payload = sanitizeData({
         ...item,
         name: cleanName,
         currentStock: item.currentStock || 0,
@@ -117,10 +112,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         mlSize: item.mlSize || 750, 
         createdBy: uid,
         updatedAt: serverTimestamp(),
-      };
-      
-      // Strict sanitization: Firestore hates undefined
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      });
 
       const docRef = await addDoc(collection(db, 'items'), payload);
       return docRef.id;
@@ -132,12 +124,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateItem = async (id: string, data: Partial<Item>) => {
     try {
-      const updateData: any = {
+      const updateData = sanitizeData({
         ...data,
         updatedAt: serverTimestamp(),
-      };
-      // Sanitize
-      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+      });
       
       await updateDoc(doc(db, 'items', id), updateData);
     } catch (error) {
@@ -156,21 +146,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addCategory = async (name: string, type?: Category['type']) => {
     if (!db) return "";
     try {
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
       
-      const payload: any = {
+      const payload = sanitizeData({
         name,
         type: type || 'other',
         createdBy: uid,
         updatedAt: serverTimestamp(),
-      };
-      // Strict sanitization
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      });
 
       const docRef = await addDoc(collection(db, 'categories'), payload);
       return docRef.id;
@@ -182,14 +165,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateCategory = async (id: string, name: string, type?: Category['type']) => {
     try {
-      const updateData: any = {
+      const updateData = sanitizeData({
         name,
+        type: type || 'other',
         updatedAt: serverTimestamp(),
-      };
-      if (type) updateData.type = type;
-      
-      // Sanitize
-      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+      });
 
       await updateDoc(doc(db, 'categories', id), updateData);
     } catch (error) {
@@ -208,20 +188,13 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'updatedAt' | 'createdBy'>) => {
     if (!db) return "";
     try {
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
 
-      const payload: any = {
+      const payload = sanitizeData({
         ...recipe,
         createdBy: uid,
         updatedAt: serverTimestamp(),
-      };
-      // Strict sanitization
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      });
 
       const docRef = await addDoc(collection(db, 'recipes'), payload);
 
@@ -247,12 +220,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateRecipe = async (id: string, data: Partial<Recipe>) => {
     try {
-      const updateData: any = {
+      const updateData = sanitizeData({
         ...data,
         updatedAt: serverTimestamp(),
-      };
-      // Sanitize
-      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+      });
 
       await updateDoc(doc(db, 'recipes', id), updateData);
     } catch (error) {
@@ -271,21 +242,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addLog = async (log: Omit<InventoryLog, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!db) return;
     try {
-      let uid = 'guest-user';
-      try {
-        if (auth?.currentUser?.uid) {
-          uid = auth.currentUser.uid;
-        }
-      } catch (e) { /* ignore */ }
+      const uid = getCurrentUserId();
 
-      const payload: any = {
+      const payload = sanitizeData({
         ...log,
         createdBy: uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      };
-      // Strict sanitization
-      Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+      });
 
       const logRef = await addDoc(collection(db, 'inventoryLogs'), payload);
       
@@ -294,19 +258,19 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         let stockChange = 0;
         if (log.type === 'count') {
           // For 'count', we still have to set the absolute value
-          await updateDoc(doc(db, 'items', log.itemId), { 
+          await updateDoc(doc(db, 'items', log.itemId), sanitizeData({ 
             currentStock: log.quantity, 
             updatedAt: serverTimestamp() 
-          });
+          }));
         } else {
           if (log.type === 'delivery') stockChange = log.quantity;
           else if (log.type === 'usage' || log.type === 'sales') stockChange = -log.quantity;
           
           if (stockChange !== 0) {
-            await updateDoc(doc(db, 'items', log.itemId), { 
+            await updateDoc(doc(db, 'items', log.itemId), sanitizeData({ 
               currentStock: increment(stockChange), 
               updatedAt: serverTimestamp() 
-            });
+            }));
           }
         }
 
@@ -385,20 +349,20 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const diff = data.quantity - existingLog.quantity;
         
         if (existingLog.type === 'count') {
-          await updateDoc(doc(db, 'items', item.id), {
+          await updateDoc(doc(db, 'items', item.id), sanitizeData({
             currentStock: data.quantity,
             updatedAt: serverTimestamp()
-          });
+          }));
         } else {
           let stockAdjustment = 0;
           if (existingLog.type === 'delivery') stockAdjustment = diff;
           else if (existingLog.type === 'usage' || existingLog.type === 'sales') stockAdjustment = -diff;
 
           if (stockAdjustment !== 0) {
-            await updateDoc(doc(db, 'items', item.id), {
+            await updateDoc(doc(db, 'items', item.id), sanitizeData({
               currentStock: increment(stockAdjustment),
               updatedAt: serverTimestamp()
-            });
+            }));
           }
         }
 
@@ -421,11 +385,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       }
 
-      const updateData: any = {
-        updatedAt: serverTimestamp()
-      };
-      if (data.quantity !== undefined) updateData.quantity = data.quantity;
-      if (data.notes !== undefined) updateData.notes = data.notes;
+      const updateData = sanitizeData({
+        updatedAt: serverTimestamp(),
+        quantity: data.quantity,
+        notes: data.notes
+      });
 
       await updateDoc(doc(db, 'inventoryLogs', id), updateData);
     } catch (error) {
@@ -458,10 +422,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           else if (logToDelete.type === 'usage' || logToDelete.type === 'sales') revertAdjustment = logToDelete.quantity;
           
           if (revertAdjustment !== 0) {
-            await updateDoc(doc(db, 'items', item.id), { 
+            await updateDoc(doc(db, 'items', item.id), sanitizeData({ 
               currentStock: increment(revertAdjustment), 
               updatedAt: serverTimestamp() 
-            });
+            }));
           }
         }
       }
