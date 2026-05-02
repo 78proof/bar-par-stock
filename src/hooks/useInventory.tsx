@@ -132,10 +132,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateItem = async (id: string, data: Partial<Item>) => {
     try {
-      await updateDoc(doc(db, 'items', id), {
+      const updateData: any = {
         ...data,
         updatedAt: serverTimestamp(),
-      });
+      };
+      // Sanitize
+      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+      
+      await updateDoc(doc(db, 'items', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `items/${id}`);
     }
@@ -178,11 +182,16 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateCategory = async (id: string, name: string, type?: Category['type']) => {
     try {
-      await updateDoc(doc(db, 'categories', id), {
+      const updateData: any = {
         name,
-        ...(type && { type }),
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (type) updateData.type = type;
+      
+      // Sanitize
+      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+      await updateDoc(doc(db, 'categories', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `categories/${id}`);
     }
@@ -238,10 +247,14 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const updateRecipe = async (id: string, data: Partial<Recipe>) => {
     try {
-      await updateDoc(doc(db, 'recipes', id), {
+      const updateData: any = {
         ...data,
         updatedAt: serverTimestamp(),
-      });
+      };
+      // Sanitize
+      Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
+      await updateDoc(doc(db, 'recipes', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `recipes/${id}`);
     }
