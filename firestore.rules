@@ -87,30 +87,12 @@ service cloud.firestore {
     }
 
     // --- Resources ---
-    // Modified to allow public access as requested
-
-    match /categories/{categoryId} {
-      allow read, write: if true;
-    }
-
-    match /items/{itemId} {
-      allow read, write: if true;
-    }
-
-    match /recipes/{recipeId} {
-      allow read, write: if true;
-    }
-
-    match /inventoryLogs/{logId} {
-      allow read, write: if true;
-    }
-
-    match /reminders/{reminderId} {
-      allow read, write: if true;
-    }
-
-    match /notes/{noteId} {
-      allow read, write: if true;
-    }
+    // Simplified to ensure accessibility for troubleshooting
+    match /categories/{id} { allow read, write: if true; }
+    match /items/{id} { allow read, write: if true; }
+    match /recipes/{id} { allow read, write: if true; }
+    match /inventoryLogs/{id} { allow read, write: if true; }
+    match /reminders/{id} { allow read, write: if true; }
+    match /notes/{id} { allow read, write: if true; }
   }
 }

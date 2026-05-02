@@ -48,6 +48,12 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!db) {
+      console.warn("InventoryProvider: Database not initialized. Skipping listeners.");
+      setLoading(false);
+      return;
+    }
+
     // Start syncing immediately since rules are public
     const itemsQuery = query(collection(db, 'items'), orderBy('name'));
     const unsubscribeItems = onSnapshot(itemsQuery, (snapshot) => {
@@ -81,6 +87,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const capitalize = (str: string) => str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 
   const addItem = async (item: Omit<Item, 'id' | 'updatedAt' | 'createdBy'>) => {
+    if (!db) {
+      alert("Database not connected. Please ensure you have added your Vercel Environment Variables (starting with VITE_FIREBASE_).");
+      return "";
+    }
     try {
       const cleanName = capitalize(item.name);
       
@@ -122,6 +132,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addCategory = async (name: string, type?: Category['type']) => {
+    if (!db) return "";
     try {
       const docRef = await addDoc(collection(db, 'categories'), {
         name,
@@ -157,6 +168,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'updatedAt' | 'createdBy'>) => {
+    if (!db) return "";
     try {
       const docRef = await addDoc(collection(db, 'recipes'), {
         ...recipe,
@@ -204,6 +216,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const addLog = async (log: Omit<InventoryLog, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (!db) return;
     try {
       const logData = {
         ...log,

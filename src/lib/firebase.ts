@@ -19,6 +19,10 @@ const firebaseConfig = {
 // Simple check to prevent crash if everything is missing
 const isFirebaseValid = !!(firebaseConfig.apiKey && firebaseConfig.projectId);
 
+if (!isFirebaseValid && typeof window !== 'undefined') {
+  console.warn("Firebase configuration is missing or incomplete. Please check your environment variables (VITE_FIREBASE_API_KEY, etc.) or firebase-applet-config.json.");
+}
+
 const app = isFirebaseValid ? initializeApp(firebaseConfig) : null;
 export const db = app ? getFirestore(app, firebaseConfig.firestoreDatabaseId || '(default)') : (null as any);
 export const auth = app ? getAuth(app) : (null as any);
@@ -40,12 +44,12 @@ export const loginAnonymously = async () => {
 export const logout = () => auth ? signOut(auth) : Promise.resolve();
 
 async function testConnection() {
+  if (!db) return;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
+    console.log("Firestore connection successful.");
+  } catch (error: any) {
+    console.error("Firestore connectivity test failed:", error.message);
   }
 }
 testConnection();
