@@ -38,35 +38,49 @@ export const useDashboardData = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) return;
+    if (!db) return;
 
+    // Start with a default or guest UID if not logged in
+    const currentUid = auth.currentUser?.uid || 'guest-user';
+
+    const setupListeners = (userId: string) => {
       const remindersQuery = query(
         collection(db, 'reminders'), 
-        where('createdBy', '==', user.uid),
+        where('createdBy', '==', userId),
         orderBy('createdAt', 'desc')
       );
       const unsubscribeReminders = onSnapshot(remindersQuery, (snapshot) => {
         setReminders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder)));
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'reminders'));
+      }, (error) => console.error("Firestore Reminders sync error:", error));
 
       const notesQuery = query(
         collection(db, 'notes'), 
-        where('createdBy', '==', user.uid),
+        where('createdBy', '==', userId),
         orderBy('createdAt', 'desc')
       );
       const unsubscribeNotes = onSnapshot(notesQuery, (snapshot) => {
         setNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Note)));
         setLoading(false);
-      }, (error) => handleFirestoreError(error, OperationType.LIST, 'notes'));
+      }, (error) => console.error("Firestore Notes sync error:", error));
 
       return () => {
         unsubscribeReminders();
         unsubscribeNotes();
       };
+    };
+
+    let stopListeners = setupListeners(currentUid);
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // If auth state changes, restart listeners for the new user
+      if (stopListeners) stopListeners();
+      stopListeners = setupListeners(user?.uid || 'guest-user');
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      if (stopListeners) stopListeners();
+      unsubscribeAuth();
+    };
   }, []);
 
   const addReminder = async (text: string) => {
@@ -74,7 +88,7 @@ export const useDashboardData = () => {
       await addDoc(collection(db, 'reminders'), {
         text,
         completed: false,
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         createdAt: serverTimestamp(),
       });
     } catch (error) {
@@ -103,7 +117,7 @@ export const useDashboardData = () => {
       await addDoc(collection(db, 'notes'), {
         content,
         title: title || '',
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         createdAt: serverTimestamp(),
       });
     } catch (error) {

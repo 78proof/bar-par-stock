@@ -24,6 +24,7 @@ interface InventoryContextType {
   logs: InventoryLog[];
   categories: Category[];
   loading: boolean;
+  dbError: string | null;
   addItem: (item: Omit<Item, 'id' | 'updatedAt' | 'createdBy'>) => Promise<string>;
   updateItem: (id: string, data: Partial<Item>) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
@@ -46,20 +47,26 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!db) {
       console.warn("InventoryProvider: Database not initialized. Skipping listeners.");
+      setDbError("Firebase configuration is missing or incomplete. Check your environment variables.");
       setLoading(false);
       return;
     }
 
+    setDbError(null);
     // Start syncing immediately since rules are public
     const itemsQuery = query(collection(db, 'items'), orderBy('name'));
     const unsubscribeItems = onSnapshot(itemsQuery, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item)));
       setLoading(false);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'items'));
+    }, (error) => {
+      console.error("Firestore Items sync error:", error);
+      setLoading(false);
+    });
 
     const categoriesQuery = query(collection(db, 'categories'), orderBy('name'));
     const unsubscribeCategories = onSnapshot(categoriesQuery, (snapshot) => {
@@ -101,7 +108,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         parLevel: item.parLevel || 0,
         isGlass: item.isGlass || false,
         mlSize: item.mlSize || 750, 
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         updatedAt: serverTimestamp(),
       });
 
@@ -137,7 +144,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const docRef = await addDoc(collection(db, 'categories'), {
         name,
         type: type || 'other',
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         updatedAt: serverTimestamp(),
       });
       return docRef.id;
@@ -172,7 +179,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const docRef = await addDoc(collection(db, 'recipes'), {
         ...recipe,
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         updatedAt: serverTimestamp(),
       });
 
@@ -220,7 +227,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const logData = {
         ...log,
-        createdBy: auth.currentUser?.uid,
+        createdBy: auth.currentUser?.uid || 'guest-user',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -413,7 +420,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   return (
     <InventoryContext.Provider value={{
-      items, recipes, logs, categories, loading,
+      items, recipes, logs, categories, loading, dbError,
       addItem, updateItem, deleteItem,
       addRecipe, updateRecipe, deleteRecipe,
       addCategory, updateCategory, deleteCategory,

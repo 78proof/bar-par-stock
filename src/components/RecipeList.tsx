@@ -85,22 +85,35 @@ export const RecipeList: React.FC = () => {
   const handleSave = async () => {
     // Basic validation
     if (!newRecipe.name || newRecipe.ingredients.some(ing => !ing.itemId || ing.amount <= 0)) {
-      alert("Please fill all fields with valid data");
+      toast.error("Please fill all fields with valid data");
       return;
     }
 
-    if (editingRecipe) {
-      await updateRecipe(editingRecipe.id, newRecipe);
-      setEditingRecipe(null);
-    } else {
-      await addRecipe(newRecipe);
+    try {
+      if (editingRecipe) {
+        await updateRecipe(editingRecipe.id, {
+          ...newRecipe,
+          categoryId: newRecipe.categoryId || 'uncategorized'
+        });
+        toast.success("Build SOP Updated");
+        setEditingRecipe(null);
+      } else {
+        await addRecipe({
+          ...newRecipe,
+          categoryId: newRecipe.categoryId || 'uncategorized'
+        });
+        toast.success("New SOP Committed to Library");
+      }
+      setAddOpen(false);
+      setNewRecipe({ 
+        name: '', 
+        categoryId: '', 
+        ingredients: [{ itemId: '', amount: 0, unit: 'oz' }]
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Cloud Error: Could not save SOP");
     }
-    setAddOpen(false);
-    setNewRecipe({ 
-      name: '', 
-      categoryId: '', 
-      ingredients: [{ itemId: '', amount: 0, unit: 'oz' }]
-    });
   };
 
   const handleAddCategory = async () => {

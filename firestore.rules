@@ -88,6 +88,7 @@ service cloud.firestore {
 
     // --- Resources ---
     // Simplified to ensure accessibility for troubleshooting
+    match /test/{id} { allow read: if true; }
     match /categories/{id} { allow read, write: if true; }
     match /items/{id} { allow read, write: if true; }
     match /recipes/{id} { allow read, write: if true; }

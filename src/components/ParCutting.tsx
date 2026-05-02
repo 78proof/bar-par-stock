@@ -296,12 +296,16 @@ export const ParCutting: React.FC = () => {
   };
 
   const handleAddItem = async () => {
-    if (!newItem.name || !newItem.categoryId) {
-      toast.error("Please fill all fields");
+    if (!newItem.name) {
+      toast.error("Item name is required");
       return;
     }
+    const itemData = {
+      ...newItem,
+      categoryId: newItem.categoryId || 'uncategorized'
+    };
     try {
-      await addItem(newItem);
+      await addItem(itemData as any);
       toast.success("Item added and cross-linked!");
       setAddOpen(false);
       setNewItem({ name: '', categoryId: '', unit: 'bottle', parLevel: 0, currentStock: 0, isGlass: false, mlSize: 750 });
