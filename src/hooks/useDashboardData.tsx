@@ -40,13 +40,9 @@ export const useDashboardData = () => {
   useEffect(() => {
     if (!db) return;
 
-    // Start with a default or guest UID if not logged in
-    const currentUid = auth.currentUser?.uid || 'guest-user';
-
-    const setupListeners = (userId: string) => {
+    const setupListeners = () => {
       const remindersQuery = query(
         collection(db, 'reminders'), 
-        where('createdBy', '==', userId),
         orderBy('createdAt', 'desc')
       );
       const unsubscribeReminders = onSnapshot(remindersQuery, (snapshot) => {
@@ -55,7 +51,6 @@ export const useDashboardData = () => {
 
       const notesQuery = query(
         collection(db, 'notes'), 
-        where('createdBy', '==', userId),
         orderBy('createdAt', 'desc')
       );
       const unsubscribeNotes = onSnapshot(notesQuery, (snapshot) => {
@@ -69,26 +64,20 @@ export const useDashboardData = () => {
       };
     };
 
-    let stopListeners = setupListeners(currentUid);
-
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // If auth state changes, restart listeners for the new user
-      if (stopListeners) stopListeners();
-      stopListeners = setupListeners(user?.uid || 'guest-user');
-    });
+    const stopListeners = setupListeners();
 
     return () => {
       if (stopListeners) stopListeners();
-      unsubscribeAuth();
     };
   }, []);
 
   const addReminder = async (text: string) => {
     try {
+      const uid = auth.currentUser?.uid || 'guest-user';
       await addDoc(collection(db, 'reminders'), {
-        text,
+        text: text || '',
         completed: false,
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         createdAt: serverTimestamp(),
       });
     } catch (error) {
@@ -114,10 +103,11 @@ export const useDashboardData = () => {
 
   const addNote = async (content: string, title?: string) => {
     try {
+      const uid = auth.currentUser?.uid || 'guest-user';
       await addDoc(collection(db, 'notes'), {
-        content,
+        content: content || '',
         title: title || '',
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         createdAt: serverTimestamp(),
       });
     } catch (error) {

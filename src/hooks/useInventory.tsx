@@ -101,6 +101,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const cleanName = capitalize(item.name);
       
+      const uid = auth.currentUser?.uid || 'guest-user';
       const docRef = await addDoc(collection(db, 'items'), {
         ...item,
         name: cleanName,
@@ -108,7 +109,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         parLevel: item.parLevel || 0,
         isGlass: item.isGlass || false,
         mlSize: item.mlSize || 750, 
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         updatedAt: serverTimestamp(),
       });
 
@@ -141,10 +142,11 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addCategory = async (name: string, type?: Category['type']) => {
     if (!db) return "";
     try {
+      const uid = auth.currentUser?.uid || 'guest-user';
       const docRef = await addDoc(collection(db, 'categories'), {
         name,
         type: type || 'other',
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         updatedAt: serverTimestamp(),
       });
       return docRef.id;
@@ -177,9 +179,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addRecipe = async (recipe: Omit<Recipe, 'id' | 'updatedAt' | 'createdBy'>) => {
     if (!db) return "";
     try {
+      const uid = auth.currentUser?.uid || 'guest-user';
       const docRef = await addDoc(collection(db, 'recipes'), {
         ...recipe,
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         updatedAt: serverTimestamp(),
       });
 
@@ -225,9 +228,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const addLog = async (log: Omit<InventoryLog, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!db) return;
     try {
+      const uid = auth.currentUser?.uid || 'guest-user';
       const logData = {
         ...log,
-        createdBy: auth.currentUser?.uid || 'guest-user',
+        createdBy: String(uid),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
